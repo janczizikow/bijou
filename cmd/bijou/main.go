@@ -4,6 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+
+	"github.com/janczizikow/bijou/pkg/cli"
 )
 
 const version = "1.0.0"
@@ -17,7 +19,7 @@ func main() {
 		fmt.Println("Usage: bijou [options] [file/dir/glob ...]")
 		fmt.Printf("\noptions:\n")
 		flag.PrintDefaults()
-		return
+		os.Exit(1)
 	}
 
 	if *printVersion {
@@ -25,7 +27,5 @@ func main() {
 		os.Exit(0)
 	}
 
-	for _, arg := range args {
-		fmt.Println(arg)
-	}
+	os.Exit(cli.Run(args))
 }
