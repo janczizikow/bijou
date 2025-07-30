@@ -1,48 +1,62 @@
 package lexer
 
 import (
-	"fmt"
 	"unicode"
 	"unicode/utf8"
 )
 
+// Lexer represents a lexical analyzer for JavaScript source code.
+// It takes a string as input and converts it into a sequence of tokens.
 type Lexer struct {
 	input string // original input
 
 	Token   Token  // current token
 	Literal string // the token literal value, if any
 
-	chr          rune // current character
-	position     int  // current position in input (points to current char)
-	readPosition int  // current reading position in input (after current char)
+	current rune
+	start   int
+	end     int
 }
 
-func NewLexer(input string) *Lexer {
+type LexerPanic struct {
+	Msg string
+}
+
+func New(input string) *Lexer {
 	l := &Lexer{input: input}
 	l.step()
+	l.Next()
 	return l
 }
 
 func (l *Lexer) step() {
-	if l.readPosition >= len(l.input) {
-		l.chr = -1 // Use -1 to indicate end of file
-		l.readPosition = len(l.input)
-	} else {
-		r, width := utf8.DecodeRuneInString(l.input[l.position:])
+	if l.end < len(l.input) {
+		r, width := utf8.DecodeRuneInString(l.input[l.end:])
 		if width == 0 {
-			l.chr = -1 // Use -1 to indicate end of file
+			l.end = len(l.input)
+			l.current = -1
 		}
-
-		l.chr = r
-		l.position = l.readPosition
-		l.readPosition += width
+		l.start = l.end
+		l.end += width
+		l.current = r
+	} else {
+		l.start = l.end
+		l.end = len(l.input)
+		l.current = -1
 	}
 }
 
+func (l *Lexer) peek() rune {
+	r, width := utf8.DecodeRuneInString(l.input[l.end:])
+	if width == 0 {
+		return -1
+	}
+
+	return r
+}
+
 func (l *Lexer) skipWhitespace() {
-	// TODO: improve this
-	switch l.chr {
-	case ' ':
+	for isWhitespace(l.current) {
 		l.step()
 	}
 }
@@ -50,52 +64,337 @@ func (l *Lexer) skipWhitespace() {
 func (l *Lexer) Next() {
 	l.skipWhitespace()
 
-	switch l.chr {
+	switch l.current {
 	case -1:
 		l.Token = EOF
-		l.Literal = ""
+
+	case '#':
+		if l.start == 0 && l.peek() == '!' {
+			l.Token = HashBang
+			l.Literal = "#!"
+			l.step()
+			l.step()
+		}
+		// TODO: syntax error?
+
+	case '!':
+		// '!' or '!=' or '!=='
+		switch l.peek() {
+		case '=':
+			l.step()
+			switch l.peek() {
+			case '=':
+				l.step()
+				l.Token = StrictInequality
+			default:
+				l.Token = Inequality
+			}
+		default:
+			l.Token = Exclamation
+		}
+		l.step()
+
+	case '+':
+		// '+' or '+=' or '++'
+		switch l.peek() {
+		case '+':
+			l.step()
+			l.Token = Increment
+		case '=':
+			l.step()
+			l.Token = AdditionAssignment
+		default:
+			l.Token = Plus
+		}
+		l.step()
+	case '-':
+		// '-' or '-=' or '--'
+		switch l.peek() {
+		case '-':
+			l.step()
+			l.Token = Decrement
+		case '=':
+			l.step()
+			l.Token = SubtractionAssignment
+		default:
+			l.Token = Subtraction
+		}
+		l.step()
+	case '*':
+		// '*' or '*=' or '**' or '**='
+		switch l.peek() {
+		case '*':
+			l.step()
+			switch l.peek() {
+			case '=':
+				l.step()
+				l.Token = ExponentiationAssignment
+			default:
+				l.Token = Exponentiation
+			}
+		case '=':
+			l.step()
+			l.Token = MultiplicationAssignment
+		default:
+			l.Token = Multiplication
+		}
+		l.step()
+	case '/':
+		// '/' or '/='
+		switch l.peek() {
+		case '=':
+			l.step()
+			l.Token = DivisionAssignment
+		default:
+			l.Token = Division
+		}
+		l.step()
+	case '%':
+		// '%' or '%='
+		switch l.peek() {
+		case '=':
+			l.step()
+			l.Token = RemainderAssignment
+		default:
+			l.Token = Remainder
+		}
+		l.step()
 	case '=':
-		// TODO: check if it could be == or ===
-		l.Token = Assignment
-		l.Literal = "="
+		// '=' or '=>' or '==' or '==='
+		switch l.peek() {
+		case '>':
+			l.step()
+			l.Token = Arrow
+		case '=':
+			l.step()
+			switch l.peek() {
+			case '=':
+				l.Token = StrictEquality
+				l.step()
+			default:
+				l.Token = Equality
+			}
+		default:
+			l.Token = Assignment
+		}
+		l.step()
+	case '&':
+		// '&' or '&=' or '&&' or '&&='
+		switch l.peek() {
+		case '&':
+			l.step()
+			switch l.peek() {
+			case '=':
+				l.step()
+				l.Token = LogicalANDAssignment
+			default:
+				l.Token = LogicalAND
+			}
+		case '=':
+			l.step()
+			l.Token = BitwiseANDAssignment
+		default:
+			l.Token = BitwiseAND
+		}
+		l.step()
+	case '|':
+		// '|' or '|=' or '||' or '||='
+		switch l.peek() {
+		case '|':
+			l.step()
+			switch l.peek() {
+			case '=':
+				l.step()
+				l.Token = LogicalORAssignment
+			default:
+				l.Token = LogicalOR
+			}
+		case '=':
+			l.step()
+			l.Token = BitwiseORAssignment
+		default:
+			l.Token = BitwiseOR
+		}
+		l.step()
+	case '^':
+		// '^' or '^='
+		switch l.peek() {
+		case '=':
+			l.step()
+			l.Token = BitwiseXORAssignment
+		default:
+			l.Token = BitwiseXOR
+		}
+		l.step()
+	case '?':
+		// '?' or '?.' or '??' or '??='
+		switch l.peek() {
+		case '?':
+			l.step()
+			switch l.peek() {
+			case '=':
+				l.step()
+				l.Token = NullishCoalescingAssignment
+			default:
+				l.Token = NullishCoalescing
+			}
+		default:
+			l.Token = Question
+		}
+		l.step()
+
+	case '~':
+		l.Token = BitwiseNOT
+		l.step()
+
+	case '<':
+		// '<' or '<<' or '<=' or '<<='
+		switch l.peek() {
+		case '<':
+			l.step()
+			switch l.peek() {
+			case '=':
+				l.step()
+				l.Token = LeftShiftAssignment
+			default:
+				l.Token = BitwiseShiftLeft
+			}
+		case '=':
+			l.step()
+			l.Token = LTE
+		default:
+			l.Token = LT
+		}
+		l.step()
+
+	case '>':
+		// '>' or '>>' or '>>>' or '>=' or '>>=' or '>>>='
+		switch l.peek() {
+		case '>':
+			l.step()
+			switch l.peek() {
+			case '>':
+				l.step()
+				switch l.peek() {
+				case '=':
+					l.step()
+					l.Token = UnsignedRightShiftAssignment
+				default:
+					l.Token = BitwiseUnsignedShiftRight
+				}
+			case '=':
+				l.step()
+				l.Token = RightShiftAssignment
+			default:
+				l.Token = BitwiseShiftRight
+			}
+		case '=':
+			l.step()
+			l.Token = GTE
+		default:
+			l.Token = GT
+		}
+		l.step()
+	case ':':
+		l.Token = Colon
+		l.step()
+	case ',':
+		l.Token = Comma
+		l.step()
+	case '.':
+		l.Token = Dot
+		l.step()
+	case '(':
+		l.Token = LParen
+		l.step()
+	case ')':
+		l.Token = RParen
+		l.step()
+	case '[':
+		l.Token = LBracket
+		l.step()
+	case ']':
+		l.Token = RBracket
+		l.step()
+	case '{':
+		l.Token = LBrace
+		l.step()
+	case '}':
+		l.Token = RBrace
 		l.step()
 	case ';':
 		l.Token = Semi
-		l.Literal = ";"
+		l.step()
+
+	// TODO: '`'
+	case '\'', '"':
+		quote := l.current
+		l.step()
+		start := l.start
+	stringLiteral:
+		for {
+			switch l.current {
+			case -1:
+				l.Token = SyntaxError
+				return
+			case '\\':
+				l.step()
+				continue
+			case quote:
+				l.step()
+				// FIXME: check if the quote is escaped before breaking?
+				break stringLiteral
+			default:
+				l.step()
+			}
+		}
+		l.Token = STRING_LITERAL
+		l.Literal = l.input[start : l.start-1]
+	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+		// TODO: floats, decimals, etc.
+		l.Token = NUMBER_LITERAL
+		l.Literal = string(l.current)
 		l.step()
 	default:
-		if isIdentifierStart(l.chr) {
+		if isIdentifierStart(l.current) {
 			l.Literal = l.scanIdentifier()
-			l.Token = LookupIdentifier(l.Literal)
-			fmt.Println(l.Literal)
+			l.Token = lookupIdentifier(l.Literal)
 		} else {
+			l.Literal = string(l.current)
 			l.Token = SyntaxError
 		}
 	}
 }
 
+func (l *Lexer) Expect(t Token) {
+	if l.Token != t {
+		panic(LexerPanic{Msg: "SyntaxError: '(' expected"})
+	}
+	l.Next()
+}
+func (lexer *Lexer) IsContextualKeyword(text string) bool {
+	return lexer.Token == Identifier && lexer.Literal == text
+}
+
 func (l *Lexer) scanIdentifier() string {
-	position := l.position
-	for isIdentifierStart(l.chr) {
+	position := l.start
+	for isIdentifierPart(l.current) {
 		l.step()
 	}
-	return l.input[position:l.position]
+	return l.input[position:l.start]
 }
 
-func (l *Lexer) print() {
-	fmt.Printf("input: %s char: %v start: %v end %v\n", l.input, string(l.chr), l.position, l.readPosition)
-}
-
-// func isWhitespace() bool {
-
-// }
-
-func isLetter(ch rune) bool {
-	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_'
+func isWhitespace(chr rune) bool {
+	return unicode.IsSpace(chr)
 }
 
 func isIdentifierStart(chr rune) bool {
-	return chr == '$' || chr == '_' || chr == '\\' ||
+	return chr == '$' || chr == '_' ||
+		'a' <= chr && chr <= 'z' || 'A' <= chr && chr <= 'Z'
+}
+
+func isIdentifierPart(chr rune) bool {
+	return chr == '$' || chr == '_' ||
 		'a' <= chr && chr <= 'z' || 'A' <= chr && chr <= 'Z' ||
-		chr >= utf8.RuneSelf && unicode.IsLetter(chr)
+		'0' <= chr && chr <= '9'
 }

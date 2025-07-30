@@ -1,7 +1,5 @@
 package lexer
 
-import "fmt"
-
 type Token uint8
 
 const (
@@ -13,8 +11,9 @@ const (
 	// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#identifiers
 	Identifier
 
-	// arithmetic operators
+	// Arithmetic operators
 	// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators#arithmetic_operators
+
 	Exponentiation
 	Multiplication
 	Division
@@ -23,26 +22,94 @@ const (
 	Subtraction
 
 	// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators#increment_and_decrement
+
 	Increment
 	Decrement
 
-	// arithmetic operators
+	// Assignment operators
 	// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators#assignment_operators
+
 	Assignment
+	MultiplicationAssignment
+	DivisionAssignment
+	RemainderAssignment
+	AdditionAssignment
+	SubtractionAssignment
+	LeftShiftAssignment
+	RightShiftAssignment
+	UnsignedRightShiftAssignment
+	BitwiseANDAssignment
+	BitwiseORAssignment
+	BitwiseXORAssignment
+	BitwiseShiftLeftAssignment
+	BitwiseShiftRightsAssignment
+	BitwiseUnsignedShiftRightAssignment
+	ExponentiationAssignment
+	LogicalANDAssignment
+	LogicalORAssignment
+	NullishCoalescingAssignment
+
+	// Logical operators
+
+	// Equality operators
+	// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators#equality_operators
+
 	Equality
+	StrictEquality
+	Inequality
+	StrictInequality
+
+	// Arrow function notation "=>"
+	Arrow
+
+	// Bitwise shift operators
+	// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators#bitwise_shift_operators
+
+	BitwiseShiftLeft
+	BitwiseShiftRight
+	BitwiseUnsignedShiftRight
+
+	// Binary bitwise operators
+	// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators#binary_bitwise_operators
+
+	BitwiseAND
+	BitwiseOR
+	BitwiseXOR
+	BitwiseNOT
+
+	// Binary logical operators
+	// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators#binary_logical_operators
+
+	LogicalAND
+	LogicalOR
+	NullishCoalescing
 
 	// Relational operators
 	// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators#relational_operators
+
 	LT
 	GT
 	LTE
 	GTE
 
-	// punctuation
-	Semi
+	// punctuation / delimiters
 
-	// keywords
+	Semi
+	Colon
+	Comma
+	Dot
+	LParen
+	RParen
+	LBrace
+	RBrace
+	LBracket
+	RBracket
+	Exclamation
+	Question
+
+	// reserved keywords
 	// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#keywords
+
 	BREAK
 	CASE
 	CATCH
@@ -79,11 +146,30 @@ const (
 	WHILE
 	WITH
 
+	// strict mode reserved keywords
+
+	LET
+	STATIC
+	YIELD
+	AWAIT
+	IMPLEMENTS
+	INTERFACE
+	PACKAGE
+	PRIVATE
+	PROTECTED
+	PUBLIC
+
 	// literals
 	// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#literals
 	// TODO:
+
+	// BOOLEAN_LITERAL
+	NUMBER_LITERAL
+	STRING_LITERAL
+	REGEXP_LITERAL
 )
 
+// reserved keywords
 var keywords = map[string]Token{
 	"break":      BREAK,
 	"case":       CASE,
@@ -122,9 +208,25 @@ var keywords = map[string]Token{
 	"with":       WITH,
 }
 
-func LookupIdentifier(identifier string) Token {
-	fmt.Printf("looking up if %v is a keyword\n", identifier)
+// strict mode reserved keywords
+var strictModeKeywords = map[string]Token{
+	"let":        LET,
+	"static":     STATIC,
+	"yield":      YIELD,
+	"implements": IMPLEMENTS,
+	"interface":  INTERFACE,
+	"package":    PACKAGE,
+	"private":    PRIVATE,
+	"protected":  PROTECTED,
+	"public":     PUBLIC,
+}
+
+func lookupIdentifier(identifier string) Token {
 	if token, exist := keywords[identifier]; exist {
+		return token
+	}
+
+	if token, exist := strictModeKeywords[identifier]; exist {
 		return token
 	}
 

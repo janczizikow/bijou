@@ -1,0 +1,88 @@
+package printer_test
+
+import (
+	"testing"
+
+	"github.com/janczizikow/bijou/internal/parser"
+	"github.com/janczizikow/bijou/internal/printer"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestPrint(t *testing.T) {
+	cases := []struct {
+		input    string
+		expected string
+		options  printer.Options
+	}{
+		{
+			input: `function xyz() {
+  let x = 5;
+  if (true) {
+x = 4;
+  }
+  return x;
+}`,
+			expected: `function xyz() {
+  let x = 5;
+  if (true) {
+    x = 4;
+  }
+  return x;
+}
+`,
+			options: printer.Options{Semi: true},
+		},
+		{
+			input:    "return;",
+			expected: "return\n",
+			options:  printer.Options{Semi: false},
+		},
+		{
+			input:    "let x = 5;",
+			expected: "let x = 5\n",
+			options:  printer.Options{Semi: false},
+		},
+		{
+			input:    "{}",
+			expected: "{\n}\n",
+			options:  printer.Options{Semi: false},
+		},
+		{
+			input:    "if (true) { let x = 5; }",
+			expected: "if (true) {\n  let x = 5\n}\n",
+			options:  printer.Options{Semi: false},
+		},
+		{
+			input:    "if (true) { let x = 5; }",
+			expected: "if (true) {\n  let x = 5\n}\n",
+			options:  printer.Options{Semi: false},
+		},
+		{
+			input:    "!true;",
+			expected: "!true\n",
+			options:  printer.Options{Semi: false},
+		},
+		{
+			input:    "function add(a, b) { return a + b; }",
+			expected: "function add(a, b) {\n  return a + b;\n}\n",
+			options:  printer.Options{Semi: true},
+		},
+		// {
+		// 	input:    "1 + 2 * 3 - 4",
+		// 	expected: "1 + 2 + 3 + 4\n",
+		// 	options:  printer.Options{Semi: false},
+		// },
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.input, func(t *testing.T) {
+			program, err := parser.Parse(tt.input)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			bytes := printer.Print(program, tt.options)
+			assert.Equal(t, tt.expected, string(bytes))
+		})
+	}
+}
