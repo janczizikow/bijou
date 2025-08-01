@@ -58,6 +58,84 @@ func TestStringLiterals(t *testing.T) {
 	}
 }
 
+func TestNumberLiterals(t *testing.T) {
+	cases := []struct {
+		token    string
+		expected string
+	}{
+		{"0", "0"},
+		{"000", "000"},
+		{"010", "010"},
+		{"123", "123"},
+		{"987", "987"},
+		{"0000", "0000"},
+		{"0123", "0123"},
+		{"0123.4567", "0123.4567"},
+		{"0987", "0987"},
+		{"0987.6543", "0987.6543"},
+		{"01289", "01289"},
+		{"01289.345", "01289.345"},
+		{"999999999", "999999999"},
+		{"9999999999", "9999999999"},
+		{"99999999999", "99999999999"},
+		// binary notation
+		{"123456789123456789", "123456789123456789"},
+		{"0b00101", "0b00101"},
+		{"0b1011101011101011101011101011101011101", "0b1011101011101011101011101011101011101"},
+		// octal notation
+		{"0o12345", "0o12345"},
+		{"0O12345", "0O12345"},
+		{"0o1234567654321", "0o1234567654321"},
+		{"0O1234567654321", "0O1234567654321"},
+		// hexadecimal notation
+		{"0x12345678", "0x12345678"},
+		{"0xFEDCBA987", "0xFEDCBA987"},
+		{"0x000012345678", "0x000012345678"},
+		{"0x123456781234", "0x123456781234"},
+		// separating with _
+		{"123_456", "123_456"},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.token, func(t *testing.T) {
+			t.Parallel()
+
+			l := New(tt.token)
+			assert.EqualValues(t, NUMBER_LITERAL, l.Token)
+			assert.Equal(t, tt.expected, l.Literal)
+		})
+	}
+}
+
+func TestInvalidNumberLiterals(t *testing.T) {
+	cases := []struct {
+		token string
+		msg   string
+	}{
+		{"0b", "SyntaxError: Invalid binary literal"},
+		{"0b ", "SyntaxError: Invalid binary literal"},
+		{"0b;", "SyntaxError: Invalid binary literal"},
+		{"0b2", "SyntaxError: Invalid binary literal"},
+		{"0o", "SyntaxError: Invalid octal literal"},
+		{"0o ", "SyntaxError: Invalid octal literal"},
+		{"0o;", "SyntaxError: Invalid octal literal"},
+		{"0o9", "SyntaxError: Invalid octal literal"},
+		{"0x", "SyntaxError: Invalid hexadecimal literal"},
+		{"0x ", "SyntaxError: Invalid hexadecimal literal"},
+		{"0x;", "SyntaxError: Invalid hexadecimal literal"},
+		{"0xg", "SyntaxError: Invalid hexadecimal literal"},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.token, func(t *testing.T) {
+			t.Parallel()
+			assert.PanicsWithValue(t, LexerPanic{Msg: tt.msg}, func() {
+				New(tt.token)
+			})
+		})
+	}
+}
+
 func TestTokens(t *testing.T) {
 	cases := []struct {
 		token    string

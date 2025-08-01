@@ -302,8 +302,13 @@ func (l *Lexer) Next() {
 		l.Token = Comma
 		l.step()
 	case '.':
-		l.Token = Dot
-		l.step()
+		if isDigit(l.peek()) {
+			l.Token = NUMBER_LITERAL
+			l.Literal = l.scanNumber()
+		} else {
+			l.Token = Dot
+			l.step()
+		}
 	case '(':
 		l.Token = LParen
 		l.step()
@@ -351,10 +356,8 @@ func (l *Lexer) Next() {
 		l.Token = STRING_LITERAL
 		l.Literal = l.input[start : l.start-1]
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-		// TODO: floats, decimals, etc.
+		l.Literal = l.scanNumber()
 		l.Token = NUMBER_LITERAL
-		l.Literal = string(l.current)
-		l.step()
 	default:
 		if isIdentifierStart(l.current) {
 			l.Literal = l.scanIdentifier()
@@ -384,6 +387,83 @@ func (l *Lexer) scanIdentifier() string {
 	return l.input[position:l.start]
 }
 
+func (l *Lexer) scanNumber() string {
+	position := l.start
+
+	if l.current == '0' {
+		switch l.peek() {
+		case 'x', 'X':
+			l.step() // consume '0'
+			l.step() // consume 'x' or 'X'
+			if !isHexDigit(l.current) {
+				panic(LexerPanic{Msg: "SyntaxError: Invalid hexadecimal literal"})
+			}
+			for isHexDigit(l.current) {
+				l.step()
+			}
+			return l.input[position:l.start]
+		case 'o', 'O':
+			l.step() // consume '0'
+			l.step() // consume 'o' or 'O'
+			if !isOctalDigit(l.current) {
+				panic(LexerPanic{Msg: "SyntaxError: Invalid octal literal"})
+			}
+			for isOctalDigit(l.current) {
+				l.step()
+			}
+			return l.input[position:l.start]
+		case 'b', 'B':
+			l.step() // consume '0'
+			l.step() // consume 'b' or 'B'
+			if !isBinaryDigit(l.current) {
+				panic(LexerPanic{Msg: "SyntaxError: Invalid binary literal"})
+			}
+			for isBinaryDigit(l.current) {
+				l.step()
+			}
+			return l.input[position:l.start]
+		}
+	}
+
+	// Integer part
+	for isDigit(l.current) {
+		l.step()
+	}
+
+	// Fractional part
+	if l.current == '.' && isDigit(l.peek()) {
+		l.step()
+		for isDigit(l.current) {
+			l.step()
+		}
+	}
+
+	// Exponent part (e.g., e-5, e+10, E10)
+	if l.current == 'e' || l.current == 'E' {
+		nextRune := l.peek()
+		if isDigit(nextRune) {
+			l.step() // consume 'e' or 'E'
+			for isDigit(l.current) {
+				l.step()
+			}
+		} else if nextRune == '+' || nextRune == '-' {
+			// Peek two characters ahead to ensure a digit follows the sign
+			_, width := utf8.DecodeRuneInString(l.input[l.end:])
+			if l.end+width < len(l.input) {
+				nextNextRune, _ := utf8.DecodeRuneInString(l.input[l.end+width:])
+				if isDigit(nextNextRune) {
+					l.step() // consume 'e' or 'E'
+					l.step() // consume sign
+					for isDigit(l.current) {
+						l.step()
+					}
+				}
+			}
+		}
+	}
+	return l.input[position:l.start]
+}
+
 func isWhitespace(chr rune) bool {
 	return unicode.IsSpace(chr)
 }
@@ -397,4 +477,20 @@ func isIdentifierPart(chr rune) bool {
 	return chr == '$' || chr == '_' ||
 		'a' <= chr && chr <= 'z' || 'A' <= chr && chr <= 'Z' ||
 		'0' <= chr && chr <= '9'
+}
+
+func isDigit(chr rune) bool {
+	return '0' <= chr && chr <= '9'
+}
+
+func isHexDigit(chr rune) bool {
+	return isDigit(chr) || ('a' <= chr && chr <= 'f') || ('A' <= chr && chr <= 'F')
+}
+
+func isOctalDigit(chr rune) bool {
+	return '0' <= chr && chr <= '7'
+}
+
+func isBinaryDigit(chr rune) bool {
+	return chr == '0' || chr == '1'
 }
