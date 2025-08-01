@@ -9,7 +9,7 @@ import (
 )
 
 func TestParse(t *testing.T) {
-	program, err := parser.Parse(`throw "hello";`)
+	program, err := parser.Parse(`try{} finally{}`)
 	require.NoError(t, err)
 
 	assert.Len(t, program.Statements, 1)
@@ -19,5 +19,5 @@ func TestParseErrors(t *testing.T) {
 	_, err := parser.Parse("{")
 	require.Error(t, err)
 
-	assert.Contains(t, err.Error(), "SyntaxError: '(' expected")
+	assert.Contains(t, err.Error(), "SyntaxError: '{' expected")
 }

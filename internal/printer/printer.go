@@ -89,6 +89,26 @@ func (p *printer) printStatement(stmt ast.Statement) {
 		p.printIndent()
 		p.printExpression(s.Expression, parser.Lowest)
 		p.printSemicolonAfterStatement()
+	case *ast.ForStatement:
+		p.printIndent()
+		p.print("for")
+		p.printSpace()
+		p.print("(")
+		if *s.Init != nil {
+			p.printStatement(*s.Init)
+		}
+		p.printSemicolonAfterStatement()
+		p.printExpression(*s.Condition, parser.Lowest)
+		p.printSemicolonAfterStatement()
+		if *s.Afterthought != nil {
+			p.printExpression(*s.Afterthought, parser.Lowest)
+		}
+		p.print(")")
+		p.printSpace()
+		// if *s.Body != nil {
+		// 	p.printStatement(*s.Body)
+		// }
+		// p.printStatement(*s.Body)
 	case *ast.FunctionDeclaration:
 		p.printIndent()
 		if s.IsAsync {
@@ -112,6 +132,29 @@ func (p *printer) printStatement(stmt ast.Statement) {
 		p.print(")")
 		p.printSpace()
 		p.printBlock(s.Body)
+	case *ast.TryCatchStatement:
+		p.printIndent()
+		p.print("try")
+		p.printSpace()
+		p.printBlock(&s.Block)
+		if s.Catch != nil {
+			p.printIndent()
+			p.print("catch")
+			if s.Catch.Parameter != nil {
+				p.printSpace()
+				p.print("(")
+				p.printExpression(*s.Catch.Parameter, parser.Lowest)
+				p.print(")")
+			}
+			p.printSpace()
+			p.printBlock(&s.Catch.Block)
+		}
+		if s.Finally != nil {
+			p.printIndent()
+			p.print("finally")
+			p.printSpace()
+			p.printBlock(s.Finally)
+		}
 	case *ast.ThrowStatement:
 		p.printIndent()
 		p.print("throw")

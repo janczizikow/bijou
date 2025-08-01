@@ -52,7 +52,9 @@ func (p *Parser) parseStatement() ast.Statement {
 			p.lexer.Expect(lexer.FUNCTION)
 			return p.parseFunction(true)
 		}
-		panic(lexer.LexerPanic{Msg: "SyntaxError: expected statement"})
+		// TODO:?
+		// panic(lexer.LexerPanic{Msg: "SyntaxError: expected statement"})
+		return &ast.ExpressionStatement{Expression: p.parseExpression(Lowest)}
 	case lexer.LBrace:
 		p.lexer.Next()
 		stmts := []ast.Statement{}
@@ -121,9 +123,17 @@ func (p *Parser) parseStatement() ast.Statement {
 			panic(lexer.LexerPanic{Msg: "SyntaxError: throw statement requires an argument"})
 		}
 		return &ast.ThrowStatement{Argument: p.parseExpression(Lowest)}
+	case lexer.FOR:
+		p.lexer.Next()
+		return p.parseForStatement()
 	case lexer.FUNCTION:
 		p.lexer.Next()
 		return p.parseFunction(false)
+	case lexer.Semi:
+		p.lexer.Next()
+		return &ast.EmptyStatement{}
+	case lexer.TRY:
+		return p.parseTryCatchStatement()
 	case lexer.WITH:
 		p.lexer.Next()
 		p.lexer.Expect(lexer.LParen)
@@ -149,6 +159,71 @@ func (p *Parser) parseStatement() ast.Statement {
 		}
 		return &ast.ExpressionStatement{Expression: expr}
 	}
+}
+
+func (p *Parser) parseTryCatchStatement() ast.Statement {
+	p.lexer.Next()
+	block := p.parseStatement()
+	blockStmt, ok := block.(*ast.BlockStatement)
+	if !ok {
+		panic(lexer.LexerPanic{Msg: "SyntaxError: '{' expected"})
+	}
+	var catch *ast.Catch
+	if p.lexer.Token == lexer.CATCH {
+		catch = &ast.Catch{}
+		p.lexer.Next()
+		if p.lexer.Token == lexer.LParen {
+			param := p.parseExpression(Lowest)
+			catch.Parameter = &param
+			p.lexer.Expect(lexer.RParen)
+		}
+		catchBlock := p.parseStatement()
+		catchStmt, ok := catchBlock.(*ast.BlockStatement)
+		if !ok {
+			panic(lexer.LexerPanic{Msg: "SyntaxError: '{' expected"})
+		}
+		catch.Block = *catchStmt
+	}
+	var finally *ast.BlockStatement
+	if p.lexer.Token == lexer.FINALLY {
+		p.lexer.Next()
+		finallyStmt := p.parseStatement()
+		finally, ok = finallyStmt.(*ast.BlockStatement)
+		if !ok {
+			panic(lexer.LexerPanic{Msg: "SyntaxError: '{' expected"})
+		}
+
+	}
+	if catch == nil && finally == nil {
+		panic(lexer.LexerPanic{Msg: "SyntaxError: 'catch' or 'finally' expected"})
+	}
+	return &ast.TryCatchStatement{Block: *blockStmt, Catch: catch, Finally: finally}
+}
+
+func (p *Parser) parseForStatement() ast.Statement {
+	p.lexer.Expect(lexer.LParen)
+	var init ast.Statement
+	if p.lexer.Token == lexer.Semi {
+		p.lexer.Next()
+	} else {
+		init = p.parseStatement()
+	}
+	var cond ast.Expression
+	if p.lexer.Token == lexer.Semi {
+		p.lexer.Next()
+	} else {
+		cond = p.parseExpression(Lowest)
+		p.lexer.Expect(lexer.Semi)
+	}
+	var step ast.Expression
+	if p.lexer.Token == lexer.RParen {
+		p.lexer.Next()
+	} else {
+		step = p.parseExpression(Lowest)
+		p.lexer.Expect(lexer.RParen)
+	}
+	body := p.parseStatement()
+	return &ast.ForStatement{Init: &init, Condition: &cond, Afterthought: &step, Body: &body}
 }
 
 func (p *Parser) parseFunction(isAsync bool) ast.Statement {

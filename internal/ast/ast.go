@@ -24,12 +24,15 @@ func (cs *ContinueStatement) statement()   {}
 func (ds *DebuggerStatement) statement()   {}
 func (dws *DoWhileStatement) statement()   {}
 func (es *ExpressionStatement) statement() {}
+func (es *EmptyStatement) statement()      {}
+func (fs *ForStatement) statement()        {}
+func (fos *ForOfStatement) statement()     {}
 func (is *IfStatement) statement()         {}
 func (vd *VariableDeclaration) statement() {}
 func (rs *ReturnStatement) statement()     {}
 func (fd *FunctionDeclaration) statement() {}
 func (ts *ThrowStatement) statement()      {}
-func (ts *TryStatement) statement()        {}
+func (ts *TryCatchStatement) statement()   {}
 func (ws *WithStatement) statement()       {}
 func (ws *WhileStatement) statement()      {}
 
@@ -54,6 +57,21 @@ type BreakStatement struct {
 
 type ExpressionStatement struct {
 	Expression Expression
+}
+
+type EmptyStatement struct{}
+
+type ForStatement struct {
+	Init         *Statement
+	Condition    *Expression
+	Afterthought *Expression
+	Body         *Statement
+}
+
+type ForOfStatement struct {
+	Variable *Statement
+	Iterable Expression
+	Body     *Statement
 }
 
 type IfStatement struct {
@@ -85,10 +103,15 @@ type ThrowStatement struct {
 	Argument Expression
 }
 
-type TryStatement struct {
-	// Block   *BlockStatement
-	// Catch   *CatchClause
-	// Finally *BlockStatement
+type TryCatchStatement struct {
+	Block   BlockStatement
+	Catch   *Catch
+	Finally *BlockStatement
+}
+
+type Catch struct {
+	Parameter *Expression
+	Block     BlockStatement
 }
 
 type WithStatement struct {
