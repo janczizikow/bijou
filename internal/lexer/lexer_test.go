@@ -38,10 +38,15 @@ func TestStringLiterals(t *testing.T) {
 		expected string
 		valid    bool
 	}{
-		// {"''", "", true},
-		// {"'hello world'\n", "hello world", true},
-		// {"'hello", "", false},
-		{"hey \"mark\"", "hey \"mark\"", true},
+		{"''", "", true},
+		{"'hello world'", "hello world", true},
+		{"'hello", "", false},
+		// {"'hello\nworld'", "", false},
+		// {"'hello\nworld'", "", false},
+		{`"hello \"mark\""`, `hello \"mark\"`, true},
+		{`'hello \'mark\''`, `hello \'mark\'`, true},
+		{`"\\"`, "\\\\", true},
+		{`'c:\\temp'`, `c:\\temp`, true},
 	}
 
 	for _, tt := range cases {
@@ -50,11 +55,11 @@ func TestStringLiterals(t *testing.T) {
 			l := New(tt.token)
 			if tt.valid {
 				assert.EqualValues(t, STRING_LITERAL, l.Token)
+				assert.Equal(t, tt.expected, l.Literal)
 			} else {
 				assert.EqualValues(t, SyntaxError, l.Token)
 			}
 		})
-
 	}
 }
 

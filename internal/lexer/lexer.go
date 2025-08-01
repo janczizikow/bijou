@@ -331,8 +331,8 @@ func (l *Lexer) Next() {
 		l.Token = Semi
 		l.step()
 
-	// TODO: '`'
-	case '\'', '"':
+	// TODO: template literals?
+	case '\'', '"', '`':
 		quote := l.current
 		l.step()
 		start := l.start
@@ -343,11 +343,11 @@ func (l *Lexer) Next() {
 				l.Token = SyntaxError
 				return
 			case '\\':
-				l.step()
+				l.step() // consume '\'
+				l.step() // consume escaped character
 				continue
 			case quote:
 				l.step()
-				// FIXME: check if the quote is escaped before breaking?
 				break stringLiteral
 			default:
 				l.step()
