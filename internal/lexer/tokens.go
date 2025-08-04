@@ -161,10 +161,9 @@ const (
 
 	// literals
 	// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#literals
-	// TODO:
 
-	// BOOLEAN_LITERAL
-	NUMBER_LITERAL
+	NUMERIC_LITERAL
+	BigIntLiteral
 	STRING_LITERAL
 	REGEXP_LITERAL
 )

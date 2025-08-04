@@ -190,6 +190,8 @@ func (p *printer) printExpression(expr ast.Expression, presedence parser.Precede
 		p.print(e.Name)
 	case *ast.NumberLiteral:
 		p.print(e.Value)
+	case *ast.BigIntLiteral:
+		p.print(e.Value)
 	case *ast.StringLiteral:
 		p.printQuoted(e.Value)
 	case *ast.BooleanLiteral:

@@ -128,6 +128,7 @@ type WhileStatement struct {
 
 func (a *Assignment) expression()        {}
 func (bl *BooleanLiteral) expression()   {}
+func (bil *BigIntLiteral) expression()   {}
 func (nl *NumberLiteral) expression()    {}
 func (sl *StringLiteral) expression()    {}
 func (nl *NullLiteral) expression()      {}
@@ -143,6 +144,10 @@ type Assignment struct {
 
 type BooleanLiteral struct {
 	Value bool
+}
+
+type BigIntLiteral struct {
+	Value string
 }
 
 type NumberLiteral struct {

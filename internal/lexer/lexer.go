@@ -1,6 +1,7 @@
 package lexer
 
 import (
+	"strings"
 	"unicode"
 	"unicode/utf8"
 )
@@ -303,7 +304,7 @@ func (l *Lexer) Next() {
 		l.step()
 	case '.':
 		if isDigit(l.peek()) {
-			l.Token = NUMBER_LITERAL
+			l.Token = NUMERIC_LITERAL
 			l.Literal = l.scanNumber()
 		} else {
 			l.Token = Dot
@@ -356,8 +357,24 @@ func (l *Lexer) Next() {
 		l.Token = STRING_LITERAL
 		l.Literal = l.input[start : l.start-1]
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-		l.Literal = l.scanNumber()
-		l.Token = NUMBER_LITERAL
+		literal := l.scanNumber()
+		if l.current == 'n' {
+			if strings.ContainsAny(literal, ".eE") {
+				panic(LexerPanic{Msg: "Invalid or unexpected token"})
+			}
+			// `07n` is invalid, but `0n` is valid. `0o7n` is valid.
+			if len(literal) > 1 && literal[0] == '0' {
+				if literal[1] != 'x' && literal[1] != 'X' && literal[1] != 'o' && literal[1] != 'O' && literal[1] != 'b' && literal[1] != 'B' {
+					panic(LexerPanic{Msg: "SyntaxError: BigInt literals cannot have a leading zero"})
+				}
+			}
+			l.Token = BigIntLiteral
+			l.Literal = literal + "n"
+			l.step() // consume 'n'
+		} else {
+			l.Token = NUMERIC_LITERAL
+			l.Literal = literal
+		}
 	default:
 		if isIdentifierStart(l.current) {
 			l.Literal = l.scanIdentifier()
@@ -416,6 +433,9 @@ func (l *Lexer) scanNumber() string {
 			}
 			l.scanNumberPart(isBinaryDigit)
 			return l.input[position:l.start]
+		}
+		if l.peek() == '_' {
+			panic(LexerPanic{Msg: "SyntaxError: Numeric separator can not be used after leading 0."})
 		}
 	}
 

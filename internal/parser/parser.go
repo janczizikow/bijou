@@ -317,10 +317,14 @@ func (p *Parser) parsePrefix(precedence Precedence) ast.Expression {
 		value := p.lexer.Token == lexer.TRUE
 		p.lexer.Next()
 		return &ast.BooleanLiteral{Value: value}
-	case lexer.NUMBER_LITERAL:
+	case lexer.NUMERIC_LITERAL:
 		v := p.lexer.Literal
 		p.lexer.Next()
 		return &ast.NumberLiteral{Value: v}
+	case lexer.BigIntLiteral:
+		v := p.lexer.Literal
+		p.lexer.Next()
+		return &ast.BigIntLiteral{Value: v}
 	case lexer.STRING_LITERAL:
 		v := p.lexer.Literal
 		p.lexer.Next()

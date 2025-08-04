@@ -110,7 +110,34 @@ func TestNumberLiterals(t *testing.T) {
 			t.Parallel()
 
 			l := New(tt.token)
-			assert.EqualValues(t, NUMBER_LITERAL, l.Token)
+			assert.EqualValues(t, NUMERIC_LITERAL, l.Token)
+			assert.Equal(t, tt.expected, l.Literal)
+		})
+	}
+}
+
+func TestBigIntLiterals(t *testing.T) {
+	cases := []struct {
+		token    string
+		expected string
+	}{
+		{"123456789123456789n", "123456789123456789n"},
+		{"0n", "0n"},
+		{"0o777n", "0o777n"},
+		{"0x123n", "0x123n"},
+		{"0b101n", "0b101n"},
+		{"1_000_000n", "1_000_000n"},
+		{"0b1010_0001n", "0b1010_0001n"},
+		{"0o7_7_7n", "0o7_7_7n"},
+		{"0xDEAD_BEEFn", "0xDEAD_BEEFn"},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.token, func(t *testing.T) {
+			t.Parallel()
+
+			l := New(tt.token)
+			assert.EqualValues(t, BigIntLiteral, l.Token)
 			assert.Equal(t, tt.expected, l.Literal)
 		})
 	}
@@ -137,6 +164,10 @@ func TestInvalidNumberLiterals(t *testing.T) {
 		{"1__0", "SyntaxError: Numeric separator must be followed by a digit"},
 		{"0b1_", "SyntaxError: Numeric separator must be followed by a digit"},
 		{"0x1_", "SyntaxError: Numeric separator must be followed by a digit"},
+		{"0_1", "SyntaxError: Numeric separator can not be used after leading 0."},
+		{"07n", "SyntaxError: Invalid or unexpected token"},
+		{"1.5n", "SyntaxError: Invalid or unexpected token"},
+		{"1e2n", "SyntaxError: Invalid or unexpected token"},
 	}
 
 	for _, tt := range cases {
