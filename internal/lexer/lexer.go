@@ -398,9 +398,7 @@ func (l *Lexer) scanNumber() string {
 			if !isHexDigit(l.current) {
 				panic(LexerPanic{Msg: "SyntaxError: Invalid hexadecimal literal"})
 			}
-			for isHexDigit(l.current) {
-				l.step()
-			}
+			l.scanNumberPart(isHexDigit)
 			return l.input[position:l.start]
 		case 'o', 'O':
 			l.step() // consume '0'
@@ -408,9 +406,7 @@ func (l *Lexer) scanNumber() string {
 			if !isOctalDigit(l.current) {
 				panic(LexerPanic{Msg: "SyntaxError: Invalid octal literal"})
 			}
-			for isOctalDigit(l.current) {
-				l.step()
-			}
+			l.scanNumberPart(isOctalDigit)
 			return l.input[position:l.start]
 		case 'b', 'B':
 			l.step() // consume '0'
@@ -418,24 +414,18 @@ func (l *Lexer) scanNumber() string {
 			if !isBinaryDigit(l.current) {
 				panic(LexerPanic{Msg: "SyntaxError: Invalid binary literal"})
 			}
-			for isBinaryDigit(l.current) {
-				l.step()
-			}
+			l.scanNumberPart(isBinaryDigit)
 			return l.input[position:l.start]
 		}
 	}
 
 	// Integer part
-	for isDigit(l.current) {
-		l.step()
-	}
+	l.scanNumberPart(isDigit)
 
 	// Fractional part
 	if l.current == '.' && isDigit(l.peek()) {
 		l.step()
-		for isDigit(l.current) {
-			l.step()
-		}
+		l.scanNumberPart(isDigit)
 	}
 
 	// Exponent part (e.g., e-5, e+10, E10)
@@ -443,9 +433,7 @@ func (l *Lexer) scanNumber() string {
 		nextRune := l.peek()
 		if isDigit(nextRune) {
 			l.step() // consume 'e' or 'E'
-			for isDigit(l.current) {
-				l.step()
-			}
+			l.scanNumberPart(isDigit)
 		} else if nextRune == '+' || nextRune == '-' {
 			// Peek two characters ahead to ensure a digit follows the sign
 			_, width := utf8.DecodeRuneInString(l.input[l.end:])
@@ -454,14 +442,27 @@ func (l *Lexer) scanNumber() string {
 				if isDigit(nextNextRune) {
 					l.step() // consume 'e' or 'E'
 					l.step() // consume sign
-					for isDigit(l.current) {
-						l.step()
-					}
+					l.scanNumberPart(isDigit)
 				}
 			}
 		}
 	}
 	return l.input[position:l.start]
+}
+
+func (l *Lexer) scanNumberPart(isDigitFunc func(rune) bool) {
+	for {
+		if isDigitFunc(l.current) {
+			l.step()
+		} else if l.current == '_' {
+			l.step() // consume '_'
+			if !isDigitFunc(l.current) {
+				panic(LexerPanic{Msg: "SyntaxError: Numeric separator must be followed by a digit"})
+			}
+		} else {
+			break
+		}
+	}
 }
 
 func isWhitespace(chr rune) bool {

@@ -99,6 +99,10 @@ func TestNumberLiterals(t *testing.T) {
 		{"0x123456781234", "0x123456781234"},
 		// separating with _
 		{"123_456", "123_456"},
+		{"1_000_000", "1_000_000"},
+		{"0b1010_0001", "0b1010_0001"},
+		{"0o7_7_7", "0o7_7_7"},
+		{"0xDEAD_BEEF", "0xDEAD_BEEF"},
 	}
 
 	for _, tt := range cases {
@@ -129,6 +133,10 @@ func TestInvalidNumberLiterals(t *testing.T) {
 		{"0x ", "SyntaxError: Invalid hexadecimal literal"},
 		{"0x;", "SyntaxError: Invalid hexadecimal literal"},
 		{"0xg", "SyntaxError: Invalid hexadecimal literal"},
+		{"1_", "SyntaxError: Numeric separator must be followed by a digit"},
+		{"1__0", "SyntaxError: Numeric separator must be followed by a digit"},
+		{"0b1_", "SyntaxError: Numeric separator must be followed by a digit"},
+		{"0x1_", "SyntaxError: Numeric separator must be followed by a digit"},
 	}
 
 	for _, tt := range cases {
