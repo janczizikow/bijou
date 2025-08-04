@@ -80,6 +80,7 @@ func TestNumberLiterals(t *testing.T) {
 		{"0987.6543", "0987.6543"},
 		{"01289", "01289"},
 		{"01289.345", "01289.345"},
+		{".123", "0.123"},
 		{"999999999", "999999999"},
 		{"9999999999", "9999999999"},
 		{"99999999999", "99999999999"},
@@ -165,7 +166,7 @@ func TestInvalidNumberLiterals(t *testing.T) {
 		{"0b1_", "SyntaxError: Numeric separator must be followed by a digit"},
 		{"0x1_", "SyntaxError: Numeric separator must be followed by a digit"},
 		{"0_1", "SyntaxError: Numeric separator can not be used after leading 0."},
-		{"07n", "SyntaxError: Invalid or unexpected token"},
+		{"07n", "SyntaxError: BigInt literals cannot have a leading zero"},
 		{"1.5n", "SyntaxError: Invalid or unexpected token"},
 		{"1e2n", "SyntaxError: Invalid or unexpected token"},
 	}

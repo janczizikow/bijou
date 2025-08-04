@@ -1,6 +1,7 @@
 package lexer
 
 import (
+	"fmt"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -228,7 +229,7 @@ func (l *Lexer) Next() {
 		}
 		l.step()
 	case '?':
-		// '?' or '?.' or '??' or '??='
+		// '?' or '??' or '??=' or '?.'
 		switch l.peek() {
 		case '?':
 			l.step()
@@ -236,6 +237,10 @@ func (l *Lexer) Next() {
 			case '=':
 				l.step()
 				l.Token = NullishCoalescingAssignment
+			case '.':
+				l.step()
+				// TODO: special token for '?.'
+				l.Token = Question
 			default:
 				l.Token = NullishCoalescing
 			}
@@ -305,7 +310,8 @@ func (l *Lexer) Next() {
 	case '.':
 		if isDigit(l.peek()) {
 			l.Token = NUMERIC_LITERAL
-			l.Literal = l.scanNumber()
+			// append 0
+			l.Literal = fmt.Sprintf("0%s", l.scanNumber())
 		} else {
 			l.Token = Dot
 			l.step()
@@ -359,8 +365,11 @@ func (l *Lexer) Next() {
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 		literal := l.scanNumber()
 		if l.current == 'n' {
-			if strings.ContainsAny(literal, ".eE") {
-				panic(LexerPanic{Msg: "Invalid or unexpected token"})
+			// BigInts can't have decimals or exponents. The 'e'/'E' check is
+			// tricky because 'e' and 'E' are valid hex digits.
+			isHex := strings.HasPrefix(literal, "0x") || strings.HasPrefix(literal, "0X")
+			if strings.Contains(literal, ".") || (strings.ContainsAny(literal, "eE") && !isHex) {
+				panic(LexerPanic{Msg: "SyntaxError: Invalid or unexpected token"})
 			}
 			// `07n` is invalid, but `0n` is valid. `0o7n` is valid.
 			if len(literal) > 1 && literal[0] == '0' {

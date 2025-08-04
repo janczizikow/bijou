@@ -10,6 +10,8 @@ const (
 	HashBang
 	// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#identifiers
 	Identifier
+	// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes/Private_elements
+	PrivateIdentifier
 
 	// Arithmetic operators
 	// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators#arithmetic_operators
