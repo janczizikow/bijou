@@ -119,7 +119,7 @@ func (l *Lexer) Next() {
 			l.step()
 			l.Token = SubtractionAssignment
 		default:
-			l.Token = Subtraction
+			l.Token = Minus
 		}
 		l.step()
 	case '*':
@@ -382,7 +382,7 @@ func (l *Lexer) Next() {
 			l.step() // consume 'n'
 		} else {
 			l.Token = NUMERIC_LITERAL
-			l.Literal = literal
+			l.Literal = strings.TrimSuffix(literal, ".")
 		}
 	default:
 		if isIdentifierStart(l.current) {
@@ -397,7 +397,7 @@ func (l *Lexer) Next() {
 
 func (l *Lexer) Expect(t Token) {
 	if l.Token != t {
-		panic(LexerPanic{Msg: "SyntaxError: '(' expected"})
+		panic(LexerPanic{Msg: fmt.Sprintf("SyntaxError: expected %s, got %s", t.String(), l.Token.String())})
 	}
 	l.Next()
 }
@@ -452,9 +452,11 @@ func (l *Lexer) scanNumber() string {
 	l.scanNumberPart(isDigit)
 
 	// Fractional part
-	if l.current == '.' && isDigit(l.peek()) {
-		l.step()
-		l.scanNumberPart(isDigit)
+	if l.current == '.' {
+		l.step() // consume '.'
+		if isDigit(l.current) {
+			l.scanNumberPart(isDigit)
+		}
 	}
 
 	// Exponent part (e.g., e-5, e+10, E10)

@@ -81,6 +81,8 @@ func TestNumberLiterals(t *testing.T) {
 		{"01289", "01289"},
 		{"01289.345", "01289.345"},
 		{".123", "0.123"},
+		{"0.", "0"},
+		{"123.", "123"},
 		{"999999999", "999999999"},
 		{"9999999999", "9999999999"},
 		{"99999999999", "99999999999"},
@@ -195,7 +197,7 @@ func TestTokens(t *testing.T) {
 		{"/", Division},
 		{"%", Remainder},
 		{"+", Plus},
-		{"-", Subtraction},
+		{"-", Minus},
 		{"++", Increment},
 		{"--", Decrement},
 		// Assignment operators

@@ -1,5 +1,9 @@
 package lexer
 
+import (
+	"fmt"
+)
+
 type Token uint8
 
 const (
@@ -21,7 +25,7 @@ const (
 	Division
 	Remainder
 	Plus
-	Subtraction
+	Minus
 
 	// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators#increment_and_decrement
 
@@ -232,4 +236,12 @@ func lookupIdentifier(identifier string) Token {
 	}
 
 	return Identifier
+}
+
+func (t Token) String() string {
+	if s, ok := tokenToString[t]; ok {
+		return s
+	}
+
+	return fmt.Sprintf("unknown_token(%d)", t)
 }
