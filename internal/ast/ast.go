@@ -126,15 +126,22 @@ type WhileStatement struct {
 
 // Expressions
 
-func (a *Assignment) expression()        {}
-func (bl *BooleanLiteral) expression()   {}
-func (bil *BigIntLiteral) expression()   {}
-func (nl *NumberLiteral) expression()    {}
-func (sl *StringLiteral) expression()    {}
-func (nl *NullLiteral) expression()      {}
-func (i *Identifier) expression()        {}
-func (ue *UnaryExpression) expression()  {}
-func (ue *BinaryExpression) expression() {}
+func (a *Assignment) expression()             {}
+func (bl *BooleanLiteral) expression()        {}
+func (bil *BigIntLiteral) expression()        {}
+func (nl *NumberLiteral) expression()         {}
+func (sl *StringLiteral) expression()         {}
+func (nl *NullLiteral) expression()           {}
+func (i *Identifier) expression()             {}
+func (ue *UnaryExpression) expression()       {}
+func (ue *BinaryExpression) expression()      {}
+func (ce *ConditionalExpression) expression() {}
+
+type ConditionalExpression struct {
+	Condition Expression
+	Then      Expression
+	Else      Expression
+}
 
 type Assignment struct {
 	Left     Expression

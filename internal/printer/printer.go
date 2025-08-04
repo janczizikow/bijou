@@ -79,7 +79,7 @@ func (p *printer) printStatement(stmt ast.Statement) {
 		p.printSemicolonAfterStatement()
 	case *ast.VariableDeclaration:
 		p.printIndent()
-		p.print("let")
+		p.print(s.Token.String())
 		p.printSpace()
 		p.printExpression(s.Value, parser.Lowest)
 		p.printSemicolonAfterStatement()
@@ -203,20 +203,18 @@ func (p *printer) printExpression(expr ast.Expression, presedence parser.Precede
 	case *ast.NullLiteral:
 		p.print("null")
 	case *ast.UnaryExpression:
-		// p.print(e.Operator.String())
-		p.print("!")
+		p.print(e.Operator.String())
 		p.printExpression(e.Right, parser.Prefix)
 	case *ast.BinaryExpression:
 		p.printExpression(e.Left, parser.Lowest)
 		p.printSpace()
-		p.print("+") // TODO: p.print(e.Operator.String())
+		p.print(e.Operator.String())
 		p.printSpace()
 		p.printExpression(e.Right, parser.Lowest)
 	case *ast.Assignment:
 		p.printExpression(e.Left, parser.Lowest)
 		p.printSpace()
-		// p.print(e.Operator.String())
-		p.print("=")
+		p.print(e.Operator.String())
 		p.printSpace()
 		p.printExpression(e.Right, parser.Lowest)
 	default:
