@@ -55,8 +55,8 @@ func (p *printer) printStatement(stmt ast.Statement) {
 		p.printIndent()
 		p.print("do")
 		p.printSpace()
-		p.printBlock(s.Body)
-		p.printIndent()
+		p.printBlock(s.Body, false)
+		p.printSpace()
 		p.print("while")
 		p.printSpace()
 		p.print("(")
@@ -68,7 +68,7 @@ func (p *printer) printStatement(stmt ast.Statement) {
 		p.print("debugger")
 		p.printSemicolonAfterStatement()
 	case *ast.BlockStatement:
-		p.printBlock(s)
+		p.printBlock(s, true)
 	case *ast.ReturnStatement:
 		p.printIndent()
 		p.print("return")
@@ -84,7 +84,7 @@ func (p *printer) printStatement(stmt ast.Statement) {
 		p.printExpression(s.Value, parser.Lowest)
 		p.printSemicolonAfterStatement()
 	case *ast.IfStatement:
-		p.printIf(s)
+		p.printIf(s, true)
 	case *ast.ExpressionStatement:
 		p.printIndent()
 		p.printExpression(s.Expression, parser.Lowest)
@@ -131,12 +131,12 @@ func (p *printer) printStatement(stmt ast.Statement) {
 		}
 		p.print(")")
 		p.printSpace()
-		p.printBlock(s.Body)
+		p.printBlock(s.Body, true)
 	case *ast.TryCatchStatement:
 		p.printIndent()
 		p.print("try")
 		p.printSpace()
-		p.printBlock(&s.Block)
+		p.printBlock(&s.Block, false)
 		if s.Catch != nil {
 			p.printIndent()
 			p.print("catch")
@@ -147,13 +147,13 @@ func (p *printer) printStatement(stmt ast.Statement) {
 				p.print(")")
 			}
 			p.printSpace()
-			p.printBlock(&s.Catch.Block)
+			p.printBlock(&s.Catch.Block, s.Finally == nil)
 		}
 		if s.Finally != nil {
 			p.printIndent()
 			p.print("finally")
 			p.printSpace()
-			p.printBlock(s.Finally)
+			p.printBlock(s.Finally, true)
 		}
 	case *ast.ThrowStatement:
 		p.printIndent()
@@ -178,7 +178,7 @@ func (p *printer) printStatement(stmt ast.Statement) {
 		p.printExpression(s.Condition, parser.Lowest)
 		p.print(")")
 		p.printSpace()
-		p.printBlock(s.Body)
+		p.printBlock(s.Body, true)
 	default:
 		panic(fmt.Sprintf("Unexpected statement type: %T", s))
 	}
@@ -224,7 +224,7 @@ func (p *printer) printExpression(expr ast.Expression, presedence parser.Precede
 	}
 }
 
-func (p *printer) printBlock(s *ast.BlockStatement) {
+func (p *printer) printBlock(s *ast.BlockStatement, trailingNewline bool) {
 	p.print("{")
 	p.printNewLine()
 	p.indent++
@@ -234,11 +234,15 @@ func (p *printer) printBlock(s *ast.BlockStatement) {
 	p.indent--
 	p.printIndent()
 	p.print("}")
-	p.printNewLine()
+	if trailingNewline {
+		p.printNewLine()
+	}
 }
 
-func (p *printer) printIf(s *ast.IfStatement) {
-	p.printIndent()
+func (p *printer) printIf(s *ast.IfStatement, indent bool) {
+	if indent {
+		p.printIndent()
+	}
 	p.print("if")
 	p.printSpace()
 	p.print("(")
@@ -248,12 +252,26 @@ func (p *printer) printIf(s *ast.IfStatement) {
 	p.print(")")
 	p.printSpace()
 	if *s.Then != nil {
-		p.printStatement(*s.Then)
+		if thenBlock, ok := (*s.Then).(*ast.BlockStatement); ok {
+			p.printBlock(thenBlock, *s.Else == nil)
+		} else {
+			p.printStatement(*s.Then)
+		}
 	}
 	if *s.Else != nil {
+		if _, ok := (*s.Then).(*ast.BlockStatement); ok {
+			p.printSpace()
+		} else {
+			p.printIndent()
+		}
 		p.print("else")
-		p.printSpace()
-		p.printStatement(*s.Else)
+		if elseIf, ok := (*s.Else).(*ast.IfStatement); ok {
+			p.printSpace()
+			p.printIf(elseIf, false)
+		} else {
+			p.printSpace()
+			p.printStatement(*s.Else)
+		}
 	}
 }
 
