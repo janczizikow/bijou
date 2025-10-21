@@ -81,7 +81,13 @@ func (p *printer) printStatement(stmt ast.Statement) {
 		p.printIndent()
 		p.print(s.Token.String())
 		p.printSpace()
-		p.printExpression(s.Value, parser.Lowest)
+		p.printExpression(s.Name, parser.Lowest)
+		if *s.Value != nil {
+			p.printSpace()
+			p.print("=")
+			p.printSpace()
+			p.printExpression(*s.Value, parser.Lowest)
+		}
 		p.printSemicolonAfterStatement()
 	case *ast.IfStatement:
 		p.printIf(s, true)
@@ -109,6 +115,18 @@ func (p *printer) printStatement(stmt ast.Statement) {
 		// 	p.printStatement(*s.Body)
 		// }
 		// p.printStatement(*s.Body)
+	case *ast.ForInStatement:
+		p.printIndent()
+		p.print("for")
+		p.printSpace()
+		p.print("(")
+		p.printStatement(s.Variable)
+		p.print("in")
+		p.printSpace()
+		p.printExpression(s.Object, parser.Lowest)
+		p.print(")")
+		p.printSpace()
+		p.printStatement(*s.Body)
 	case *ast.FunctionDeclaration:
 		p.printIndent()
 		if s.IsAsync {
@@ -179,6 +197,9 @@ func (p *printer) printStatement(stmt ast.Statement) {
 		p.print(")")
 		p.printSpace()
 		p.printBlock(s.Body, true)
+	case *ast.EmptyStatement:
+		p.printIndent()
+		p.print(";")
 	default:
 		panic(fmt.Sprintf("Unexpected statement type: %T", s))
 	}

@@ -91,4 +91,11 @@ var tokenToString = map[Token]string{
 	WHILE:      "while",
 	WITH:       "with",
 	LET:        "let",
+	LBracket:   "[",
+	RBracket:   "]",
+	LBrace:     "{",
+	RBrace:     "}",
+	LParen:     "(",
+	RParen:     ")",
+	Colon:      ":",
 }

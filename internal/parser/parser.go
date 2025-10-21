@@ -45,16 +45,6 @@ func New(l *lexer.Lexer) *Parser {
 
 func (p *Parser) parseStatement() ast.Statement {
 	switch p.lexer.Token {
-	case lexer.Identifier:
-		if p.lexer.IsContextualKeyword("async") {
-			p.lexer.Next()
-			// FIXME: Check if there was a new line before
-			p.lexer.Expect(lexer.FUNCTION)
-			return p.parseFunction(true)
-		}
-		// TODO:?
-		// panic(lexer.LexerPanic{Msg: "SyntaxError: expected statement"})
-		return &ast.ExpressionStatement{Expression: p.parseExpression(Lowest)}
 	case lexer.LBrace:
 		p.lexer.Next()
 		stmts := []ast.Statement{}
@@ -101,9 +91,21 @@ func (p *Parser) parseStatement() ast.Statement {
 	case lexer.VAR, lexer.LET, lexer.CONST:
 		kind := p.lexer.Token
 		p.lexer.Next()
+		if p.lexer.Token != lexer.Identifier {
+			// TODO: handle destructuring etc.
+			panic(lexer.LexerPanic{Msg: "SyntaxError: variable declaration requires a name"})
+		}
+		name := &ast.Identifier{Name: p.lexer.Literal}
+		p.lexer.Next()
+		var value ast.Expression
+		if p.lexer.Token == lexer.Assignment {
+			p.lexer.Next() // consume '='
+			value = p.parseExpression(Lowest)
+		}
 		return &ast.VariableDeclaration{
 			Token: kind,
-			Value: p.parseExpression(Lowest),
+			Name:  name,
+			Value: &value,
 		}
 	case lexer.IF:
 		p.lexer.Next()
@@ -124,7 +126,6 @@ func (p *Parser) parseStatement() ast.Statement {
 		}
 		return &ast.ThrowStatement{Argument: p.parseExpression(Lowest)}
 	case lexer.FOR:
-		p.lexer.Next()
 		return p.parseForStatement()
 	case lexer.FUNCTION:
 		p.lexer.Next()
@@ -201,13 +202,24 @@ func (p *Parser) parseTryCatchStatement() ast.Statement {
 }
 
 func (p *Parser) parseForStatement() ast.Statement {
+	p.lexer.Next() // consume "for"
 	p.lexer.Expect(lexer.LParen)
-	var init ast.Statement
-	if p.lexer.Token == lexer.Semi {
-		p.lexer.Next()
-	} else {
-		init = p.parseStatement()
+	var left ast.Statement
+	if p.lexer.Token != lexer.Semi {
+		left = p.parseStatement()
 	}
+
+	if p.lexer.Token == lexer.IN {
+		if left == nil {
+			panic(lexer.LexerPanic{Msg: "Expression expected"})
+		}
+		p.lexer.Next() // consume 'in'
+		right := p.parseExpression(Lowest)
+		p.lexer.Expect(lexer.RParen)
+		body := p.parseStatement()
+		return &ast.ForInStatement{Variable: left, Object: right, Body: &body}
+	}
+
 	var cond ast.Expression
 	if p.lexer.Token == lexer.Semi {
 		p.lexer.Next()
@@ -223,7 +235,7 @@ func (p *Parser) parseForStatement() ast.Statement {
 		p.lexer.Expect(lexer.RParen)
 	}
 	body := p.parseStatement()
-	return &ast.ForStatement{Init: &init, Condition: &cond, Afterthought: &step, Body: &body}
+	return &ast.ForStatement{Init: &left, Condition: &cond, Afterthought: &step, Body: &body}
 }
 
 func (p *Parser) parseFunction(isAsync bool) ast.Statement {
@@ -236,7 +248,7 @@ func (p *Parser) parseFunction(isAsync bool) ast.Statement {
 	if p.lexer.Token != lexer.Identifier {
 		panic(lexer.LexerPanic{Msg: "SyntaxError: function statement requires a name"})
 	}
-	name := &ast.Identifier{Name: p.lexer.Literal, Token: lexer.Identifier}
+	name := &ast.Identifier{Name: p.lexer.Literal}
 	p.lexer.Next() // consume identifier
 
 	p.lexer.Expect(lexer.LParen)
@@ -246,7 +258,7 @@ func (p *Parser) parseFunction(isAsync bool) ast.Statement {
 		if p.lexer.Token != lexer.Identifier {
 			panic(lexer.LexerPanic{Msg: "SyntaxError: expected identifier in function arguments"})
 		}
-		args = append(args, &ast.Identifier{Name: p.lexer.Literal, Token: lexer.Identifier})
+		args = append(args, &ast.Identifier{Name: p.lexer.Literal})
 		p.lexer.Next()
 
 		if p.lexer.Token == lexer.Comma {
@@ -305,10 +317,7 @@ func (p *Parser) parsePrefix(precedence Precedence) ast.Expression {
 		name := p.lexer.Literal
 		p.lexer.Next()
 		// TODO: nested switch?
-		return &ast.Identifier{
-			Name:  name,
-			Token: lexer.Identifier,
-		}
+		return &ast.Identifier{Name: name}
 	case lexer.Exclamation:
 		p.lexer.Next()
 		// TODO: syntax check?

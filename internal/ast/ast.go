@@ -2,8 +2,6 @@ package ast
 
 import "github.com/janczizikow/bijou/internal/lexer"
 
-type Precedence uint8
-
 type Statement interface {
 	statement()
 }
@@ -25,7 +23,9 @@ func (ds *DebuggerStatement) statement()   {}
 func (dws *DoWhileStatement) statement()   {}
 func (es *ExpressionStatement) statement() {}
 func (es *EmptyStatement) statement()      {}
+func (is *ImportStatement) statement()     {}
 func (fs *ForStatement) statement()        {}
+func (fis *ForInStatement) statement()     {}
 func (fos *ForOfStatement) statement()     {}
 func (is *IfStatement) statement()         {}
 func (vd *VariableDeclaration) statement() {}
@@ -61,6 +61,11 @@ type ExpressionStatement struct {
 
 type EmptyStatement struct{}
 
+type ImportStatement struct {
+	Path       Expression
+	Assertions []string
+}
+
 type ForStatement struct {
 	Init         *Statement
 	Condition    *Expression
@@ -68,8 +73,14 @@ type ForStatement struct {
 	Body         *Statement
 }
 
+type ForInStatement struct {
+	Variable Statement
+	Object   Expression
+	Body     *Statement
+}
+
 type ForOfStatement struct {
-	Variable *Statement
+	Variable Statement
 	Iterable Expression
 	Body     *Statement
 }
@@ -83,7 +94,7 @@ type IfStatement struct {
 type VariableDeclaration struct {
 	Token lexer.Token // the first token of the expression
 	Name  *Identifier
-	Value Expression
+	Value *Expression
 }
 
 type FunctionDeclaration struct {
@@ -168,8 +179,7 @@ type StringLiteral struct {
 type NullLiteral struct{}
 
 type Identifier struct {
-	Name  string
-	Token lexer.Token
+	Name string
 }
 
 type UnaryExpression struct {

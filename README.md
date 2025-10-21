@@ -12,16 +12,20 @@ TODOS:
     - [ ] TypeScript decorators (eg.: @sealed)
     - [ ] comments :(
   - [x] string literals
-    - [ ] escaped chars?
+    - [x] escaped chars?
     - [ ] template literals?
-  - [ ] numeric literals
+  - [x] numeric literals
+    - [x] 1_000_000
+    - [x] bigint (eg.: 123456789123456789n)
   - [ ] line tracking?
   - [x] error handling
-    - [ ]
+    - [ ] track lines?
+    - [ ] show errors verbosely with ^
 - [ ] parser
+  - [ ] parsing bindings like ({ msg, err })
   - [ ] figure out how to deal with operator precedence
 - [x] printer
-  - [ ] actual formatting logic
+  - [ ] bugs
 
 ## Usage
 

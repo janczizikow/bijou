@@ -401,9 +401,6 @@ func (l *Lexer) Expect(t Token) {
 	}
 	l.Next()
 }
-func (lexer *Lexer) IsContextualKeyword(text string) bool {
-	return lexer.Token == Identifier && lexer.Literal == text
-}
 
 func (l *Lexer) scanIdentifier() string {
 	position := l.start
