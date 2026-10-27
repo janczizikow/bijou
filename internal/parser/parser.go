@@ -266,10 +266,10 @@ func (p *Parser) parseFunction(isAsync bool) ast.Statement {
 func (p *Parser) parseExpression(precedence Precedence) ast.Expression {
 	expr := p.parsePrefix()
 
-	if precedence < p.precedence() {
+	for precedence < p.precedence() {
 		infix := p.parseInfix(expr)
 		if infix == nil {
-			return expr
+			break
 		}
 		// p.lexer.Next() // consume semi???
 		expr = infix
@@ -372,15 +372,26 @@ func (p *Parser) parseInfix(left ast.Expression) ast.Expression {
 			Left:     left,
 			Right:    p.parseExpression(prec),
 		}
-	case lexer.Dot, lexer.OptionalChaning:
-		tkn := p.lexer.Token
+	case lexer.Dot, lexer.OptionalChaning, lexer.LBracket:
+		optional := p.lexer.Token == lexer.OptionalChaning
+		computed := p.lexer.Token == lexer.LBracket
 		p.lexer.Next()
+		var field ast.Expression
+		if computed {
+			field = p.parseExpression(Lowest)
+			p.lexer.Expect(lexer.RBracket)
+		} else {
+			// TODO: keywords are also allowed e.g.: object.this
+			if p.lexer.Token != lexer.Identifier && p.lexer.Token != lexer.PrivateIdentifier {
+				panic(lexer.LexerPanic{Msg: "SyntaxError: Unexpected token"})
+			}
+			field = p.parseExpression(Member)
+		}
 		return &ast.PropertyAccessExpression{
 			Object:   left,
-			Field:    p.parseExpression(prec),
-			Optional: tkn == lexer.OptionalChaning,
-			// TODO:
-			// Computed: false,
+			Field:    field,
+			Optional: optional,
+			Computed: computed,
 		}
 	default:
 		return nil

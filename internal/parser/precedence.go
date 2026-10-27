@@ -30,6 +30,7 @@ const (
 var precedences = map[lexer.Token]Precedence{
 	lexer.Dot:             Call,
 	lexer.OptionalChaning: Call,
+	lexer.LBracket:        Call,
 
 	// TODO: prefix vs. postfix operators
 

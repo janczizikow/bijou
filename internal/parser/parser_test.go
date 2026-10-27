@@ -107,10 +107,12 @@ func TestPropertyAccessors(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		input    string
+		wantErr  bool
 		expected ast.Expression
 	}{
 		{
 			"object.propertyName",
+			false,
 			&ast.PropertyAccessExpression{
 				Object: &ast.Identifier{Name: "object"},
 				Field:  &ast.Identifier{Name: "propertyName"},
@@ -118,6 +120,7 @@ func TestPropertyAccessors(t *testing.T) {
 		},
 		{
 			"object.#propertyName",
+			false,
 			&ast.PropertyAccessExpression{
 				Object: &ast.Identifier{Name: "object"},
 				Field:  &ast.Identifier{Name: "propertyName", Private: true},
@@ -125,21 +128,74 @@ func TestPropertyAccessors(t *testing.T) {
 		},
 		{
 			"object?.propertyName",
+			false,
 			&ast.PropertyAccessExpression{
 				Object:   &ast.Identifier{Name: "object"},
 				Field:    &ast.Identifier{Name: "propertyName"},
 				Optional: true,
 			},
 		},
-		// TODO:
+		// TODO: allow keywords
 		// {
-		// 	"object[propertyName]",
+		// 	"object.this",
+		// 	false,
 		// 	&ast.PropertyAccessExpression{
-		// 		Object:   &ast.Identifier{Name: "object"},
-		// 		Field:    &ast.Identifier{Name: "propertyName"},
-		// 		Computed: true,
+		// 		Object: &ast.PropertyAccessExpression{
+		// 			Object: &ast.Identifier{Name: "object"},
+		// 			Field:  nil, // TODO: new node??
+		// 		},
+		// 		Field: &ast.Identifier{Name: "otherName"},
 		// 	},
 		// },
+		{
+			"object.propertyName.otherName",
+			false,
+			&ast.PropertyAccessExpression{
+				Object: &ast.PropertyAccessExpression{
+					Object: &ast.Identifier{Name: "object"},
+					Field:  &ast.Identifier{Name: "propertyName"},
+				},
+				Field: &ast.Identifier{Name: "otherName"},
+			},
+		},
+		{
+			"object.propertyName?.otherName",
+			false,
+			&ast.PropertyAccessExpression{
+				Object: &ast.PropertyAccessExpression{
+					Object: &ast.Identifier{Name: "object"},
+					Field:  &ast.Identifier{Name: "propertyName"},
+				},
+				Field:    &ast.Identifier{Name: "otherName"},
+				Optional: true,
+			},
+		},
+		{
+			`object["propertyName"]`,
+			false,
+			&ast.PropertyAccessExpression{
+				Object:   &ast.Identifier{Name: "object"},
+				Field:    &ast.StringLiteral{Value: "propertyName"},
+				Computed: true,
+			},
+		},
+		{
+			"object[x + y]",
+			false,
+			&ast.PropertyAccessExpression{
+				Object: &ast.Identifier{Name: "object"},
+				Field: &ast.BinaryExpression{
+					Operator: lexer.Plus,
+					Left:     &ast.Identifier{Name: "x"},
+					Right:    &ast.Identifier{Name: "y"},
+				},
+				Computed: true,
+			},
+		},
+		{"a.-b", true, nil},
+		{"a.[1]", true, nil},
+		// {"a.1", true, nil}, // FIXME: fails because ".1" is lexed as a numeric literal
+		{"a.", true, nil},
 	}
 
 	for _, tc := range cases {
@@ -147,17 +203,22 @@ func TestPropertyAccessors(t *testing.T) {
 			t.Parallel()
 
 			program, err := parser.Parse(tc.input)
-			require.NoError(t, err)
-			assert.Len(t, program.Statements, 1)
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.ErrorContains(t, err, "SyntaxError")
+			} else {
+				require.NoError(t, err)
+				assert.Len(t, program.Statements, 1)
 
-			expr, ok := program.Statements[0].(*ast.ExpressionStatement)
-			require.True(t, ok, fmt.Sprintf("Expected *ast.ExpressionStatement, got %T", program.Statements[0]))
-			require.NotNil(t, expr)
+				expr, ok := program.Statements[0].(*ast.ExpressionStatement)
+				require.True(t, ok, fmt.Sprintf("Expected *ast.ExpressionStatement, got %T", program.Statements[0]))
+				require.NotNil(t, expr)
 
-			got, ok := expr.Expression.(*ast.PropertyAccessExpression)
-			require.True(t, ok, fmt.Sprintf("Expected *ast.PropertyAccessExpression, got %T", expr.Expression))
+				got, ok := expr.Expression.(*ast.PropertyAccessExpression)
+				require.True(t, ok, fmt.Sprintf("Expected *ast.PropertyAccessExpression, got %T", expr.Expression))
 
-			assert.Equal(t, tc.expected, got)
+				assert.Equal(t, tc.expected, got)
+			}
 		})
 	}
 }
