@@ -103,7 +103,91 @@ func TestAssignemnts(t *testing.T) {
 // 	assert.Contains(t, err.Error(), "SyntaxError: '}' expected")
 // }
 
-func TestPropertyAccessors(t *testing.T) {
+func TestParseBreak(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		input    string
+		wantErr  bool
+		expected ast.Statement
+	}{
+		{"break", false, &ast.BreakStatement{}},
+		{"break label", false, &ast.BreakStatement{Label: new("label")}},
+		{"break this", true, nil},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.input, func(t *testing.T) {
+			t.Parallel()
+			program, err := parser.Parse(tc.input)
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.ErrorContains(t, err, "SyntaxError")
+			} else {
+				require.NoError(t, err)
+				assert.Len(t, program.Statements, 1)
+				assert.Equal(t, tc.expected, program.Statements[0])
+			}
+		})
+	}
+}
+
+func TestParseContinue(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		input    string
+		wantErr  bool
+		expected ast.Statement
+	}{
+		{"continue", false, &ast.ContinueStatement{}},
+		{"continue label", false, &ast.ContinueStatement{Label: new("label")}},
+		{"continue this", true, nil},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.input, func(t *testing.T) {
+			t.Parallel()
+			program, err := parser.Parse(tc.input)
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.ErrorContains(t, err, "SyntaxError")
+			} else {
+				require.NoError(t, err)
+				assert.Len(t, program.Statements, 1)
+				assert.Equal(t, tc.expected, program.Statements[0])
+			}
+		})
+	}
+}
+
+func TestParseThrow(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		input    string
+		wantErr  bool
+		expected ast.Statement
+	}{
+		{"throw;", true, nil},
+		{"throw", true, nil},
+		{"throw err", false, &ast.ThrowStatement{Argument: &ast.Identifier{Name: "err"}}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.input, func(t *testing.T) {
+			t.Parallel()
+			program, err := parser.Parse(tc.input)
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.ErrorContains(t, err, "SyntaxError")
+			} else {
+				require.NoError(t, err)
+				assert.Len(t, program.Statements, 1)
+				assert.Equal(t, tc.expected, program.Statements[0])
+			}
+		})
+	}
+}
+
+func TestParsePropertyAccessors(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		input    string

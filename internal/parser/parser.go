@@ -101,7 +101,7 @@ func (p *Parser) parseStatement() ast.Statement {
 		return &ast.IfStatement{Condition: cond, Then: &stmt, Else: &elseStmt}
 	case lexer.THROW:
 		p.lexer.Next()
-		if p.lexer.Token == lexer.Semi {
+		if p.lexer.Token == lexer.EOF || p.lexer.Token == lexer.Semi {
 			panic(lexer.LexerPanic{Msg: "SyntaxError: throw statement requires an argument"})
 		}
 		return &ast.ThrowStatement{Argument: p.parseExpression(Lowest)}
@@ -286,7 +286,7 @@ func (p *Parser) parsePrefix() ast.Expression {
 		p.lexer.Next()
 		// TODO: nested switch?
 		return &ast.Identifier{Name: name, Private: tkn == lexer.PrivateIdentifier}
-	case lexer.Exclamation, lexer.Minus:
+	case lexer.Exclamation, lexer.Plus, lexer.Minus:
 		tkn := p.lexer.Token
 		p.lexer.Next()
 		// TODO: syntax check?
@@ -399,13 +399,13 @@ func (p *Parser) parseInfix(left ast.Expression) ast.Expression {
 }
 
 func (p *Parser) parseLabel() *string {
-	if p.lexer.Token == lexer.Identifier {
-		name := p.lexer.Literal
-		p.lexer.Next()
-		return &name
+	if p.lexer.Token == lexer.Semi || p.lexer.Token == lexer.EOF {
+		return nil
 	}
+	name := p.lexer.Literal
+	p.lexer.Expect(lexer.Identifier)
 
-	return nil
+	return &name
 }
 
 func Parse(input string) (program *ast.Program, err error) {
