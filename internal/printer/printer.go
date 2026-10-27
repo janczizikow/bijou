@@ -256,9 +256,22 @@ func (p *printer) printExpression(expr ast.Expression, presedence parser.Precede
 		if e.Optional {
 			op = "?."
 		}
+		if e.Computed {
+			op = "["
+		}
 		p.printExpression(e.Object, parser.Lowest)
 		p.print(op)
-		p.printExpression(e.Field, parser.Lowest)
+		p.printExpression(e.Field, parser.Call)
+		if e.Computed {
+			p.print("]")
+		}
+	case *ast.FunctionCall:
+		p.printExpression(e.Fn, parser.Lowest)
+		p.print("(")
+		for _, arg := range e.Args {
+			p.printExpression(arg, parser.Comma)
+		}
+		p.print(")")
 	case nil:
 		break
 	default:

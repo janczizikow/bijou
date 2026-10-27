@@ -62,8 +62,10 @@ type ExpressionStatement struct {
 type EmptyStatement struct{}
 
 type ImportStatement struct {
-	Path       Expression
-	Assertions []string
+	DefaultImport   *Identifier
+	NamespaceImport *Identifier
+	Path            Expression
+	Assertions      []string
 }
 
 type ForStatement struct {
@@ -106,7 +108,6 @@ type FunctionDeclaration struct {
 }
 
 type ReturnStatement struct {
-	Token       lexer.Token // the 'return' token
 	ReturnValue Expression
 }
 
@@ -149,6 +150,7 @@ func (ue *UnaryExpression) expression()           {}
 func (ue *BinaryExpression) expression()          {}
 func (ce *ConditionalExpression) expression()     {}
 func (pae *PropertyAccessExpression) expression() {}
+func (fc *FunctionCall) expression()              {}
 
 type ConditionalExpression struct {
 	Condition Expression
@@ -201,6 +203,11 @@ type PropertyAccessExpression struct {
 	Field    Expression
 	Optional bool
 	Computed bool
+}
+
+type FunctionCall struct {
+	Fn   Expression
+	Args []Expression
 }
 
 type ArrayLiteralExpression struct {

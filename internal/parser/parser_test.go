@@ -112,6 +112,7 @@ func TestParseBreak(t *testing.T) {
 	}{
 		{"break", false, &ast.BreakStatement{}},
 		{"break label", false, &ast.BreakStatement{Label: new("label")}},
+		{"{break}", false, &ast.BlockStatement{Statements: []ast.Statement{&ast.BreakStatement{}}}},
 		{"break this", true, nil},
 	}
 
@@ -307,6 +308,64 @@ func TestParsePropertyAccessors(t *testing.T) {
 	}
 }
 
+func TestParseFunctionCall(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		input    string
+		expected ast.Expression
+	}{
+		{
+			input: "square(5)",
+			expected: &ast.FunctionCall{
+				Fn:   &ast.Identifier{Name: "square"},
+				Args: []ast.Expression{&ast.NumberLiteral{Value: "5"}},
+			},
+		},
+		{
+			input: "apply(1,2,3)",
+			expected: &ast.FunctionCall{
+				Fn: &ast.Identifier{Name: "apply"},
+				Args: []ast.Expression{
+					&ast.NumberLiteral{Value: "1"},
+					&ast.NumberLiteral{Value: "2"},
+					&ast.NumberLiteral{Value: "3"},
+				},
+			},
+		},
+		{
+			input: "console.log('test')",
+			expected: &ast.FunctionCall{
+				Fn: &ast.PropertyAccessExpression{
+					Object: &ast.Identifier{Name: "console"},
+					Field:  &ast.Identifier{Name: "log"},
+				},
+				Args: []ast.Expression{
+					&ast.StringLiteral{Value: "test"},
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.input, func(t *testing.T) {
+			t.Parallel()
+
+			program, err := parser.Parse(tc.input)
+			require.NoError(t, err)
+			assert.Len(t, program.Statements, 1)
+
+			expr, ok := program.Statements[0].(*ast.ExpressionStatement)
+			require.True(t, ok, fmt.Sprintf("Expected *ast.ExpressionStatement, got %T", program.Statements[0]))
+			require.NotNil(t, expr)
+
+			got, ok := expr.Expression.(*ast.FunctionCall)
+			require.True(t, ok, fmt.Sprintf("Expected *ast.FunctionCall, got %T", expr.Expression))
+
+			assert.Equal(t, tc.expected, got)
+		})
+	}
+}
+
 func TestParseArrays(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
@@ -345,6 +404,54 @@ func TestParseArrays(t *testing.T) {
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "SyntaxError")
 	})
+}
+
+func TestImportStatement(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name     string
+		input    string
+		expected ast.Statement
+	}{
+		{
+			name:     "side effect import",
+			input:    `import "module-name";`,
+			expected: &ast.ImportStatement{Path: &ast.StringLiteral{Value: "module-name"}},
+		},
+		{
+			name:  "default import",
+			input: `import defaultExport from "module-name";`,
+			expected: &ast.ImportStatement{
+				DefaultImport: &ast.Identifier{Name: "defaultExport"},
+				Path:          &ast.StringLiteral{Value: "module-name"},
+			},
+		},
+		{
+			name:  "namespace import",
+			input: `import * as name from "module-name";`,
+			expected: &ast.ImportStatement{
+				NamespaceImport: &ast.Identifier{Name: "name"},
+				Path:            &ast.StringLiteral{Value: "module-name"},
+			},
+		},
+		{
+			name:  "named import",
+			input: `import { foo, bar } from "module-name";`,
+			expected: &ast.ImportStatement{
+				Path: &ast.StringLiteral{Value: "module-name"},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			program, err := parser.Parse(tc.input)
+			require.NoError(t, err)
+			assert.Len(t, program.Statements, 1)
+			assert.Equal(t, tc.expected, program.Statements[0])
+		})
+	}
 }
 
 func TestParseForStatement(t *testing.T) {
