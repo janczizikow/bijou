@@ -39,6 +39,7 @@ var precedences = map[lexer.Token]Precedence{
 
 	lexer.Multiplication: Multiply,
 	lexer.Division:       Multiply,
+	lexer.Remainder:      Multiply,
 
 	lexer.Plus:  Add,
 	lexer.Minus: Add,
