@@ -236,6 +236,16 @@ func (p *printer) printExpression(expr ast.Expression, presedence parser.Precede
 		p.print(e.Operator.String())
 		p.printSpace()
 		p.printExpression(e.Right, parser.Lowest)
+	case *ast.ArrayLiteralExpression:
+		p.print("[")
+		for i, el := range e.Elements {
+			p.printExpression(el, parser.Comma)
+			if i < len(e.Elements)-1 {
+				p.print(",")
+				p.printSpace()
+			}
+		}
+		p.print("]")
 	case *ast.Assignment:
 		p.printExpression(e.Left, parser.Lowest)
 		p.printSpace()

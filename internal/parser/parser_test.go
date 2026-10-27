@@ -161,3 +161,43 @@ func TestPropertyAccessors(t *testing.T) {
 		})
 	}
 }
+
+func TestParseArrays(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		input    string
+		expected ast.Expression
+	}{
+		{"[1, 2, 3]", &ast.ArrayLiteralExpression{Elements: []ast.Expression{
+			&ast.NumberLiteral{Value: "1"},
+			&ast.NumberLiteral{Value: "2"},
+			&ast.NumberLiteral{Value: "3"},
+		}}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.input, func(t *testing.T) {
+			t.Parallel()
+
+			program, err := parser.Parse(tc.input)
+			require.NoError(t, err)
+			assert.Len(t, program.Statements, 1)
+
+			expr, ok := program.Statements[0].(*ast.ExpressionStatement)
+			require.True(t, ok, fmt.Sprintf("Expected *ast.ExpressionStatement, got %T", program.Statements[0]))
+			require.NotNil(t, expr)
+
+			got, ok := expr.Expression.(*ast.ArrayLiteralExpression)
+			require.True(t, ok, fmt.Sprintf("Expected *ast.ArrayLiteralExpression, got %T", expr.Expression))
+
+			assert.Equal(t, tc.expected, got)
+		})
+	}
+
+	t.Run("unexpected EOF", func(t *testing.T) {
+		t.Parallel()
+		_, err := parser.Parse("[1,2")
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "SyntaxError")
+	})
+}

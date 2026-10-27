@@ -137,6 +137,7 @@ type WhileStatement struct {
 
 // #region Expressions
 
+func (ale *ArrayLiteralExpression) expression()   {}
 func (a *Assignment) expression()                 {}
 func (bl *BooleanLiteral) expression()            {}
 func (bil *BigIntLiteral) expression()            {}
@@ -200,4 +201,8 @@ type PropertyAccessExpression struct {
 	Field    Expression
 	Optional bool
 	Computed bool
+}
+
+type ArrayLiteralExpression struct {
+	Elements []Expression
 }

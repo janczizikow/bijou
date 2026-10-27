@@ -310,6 +310,20 @@ func (p *Parser) parsePrefix() ast.Expression {
 	case lexer.NULL:
 		p.lexer.Next()
 		return &ast.NullLiteral{}
+	case lexer.LBracket:
+		p.lexer.Next()
+		elements := make([]ast.Expression, 0)
+		for p.lexer.Token != lexer.RBracket {
+			if p.lexer.Token == lexer.EOF {
+				panic(lexer.LexerPanic{Msg: "SyntaxError: ']' expected."})
+			}
+			elements = append(elements, p.parseExpression(Comma))
+			if p.lexer.Token == lexer.Comma {
+				p.lexer.Next()
+			}
+		}
+		p.lexer.Next()
+		return &ast.ArrayLiteralExpression{Elements: elements}
 	default:
 		p.lexer.Next()
 		// TODO: check?

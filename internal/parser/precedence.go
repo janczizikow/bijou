@@ -7,7 +7,7 @@ type Precedence uint8
 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Operator_precedence
 const (
 	Lowest Precedence = iota
-	Coma
+	Comma
 	Assignment
 	LogicalOr
 	LogicalAnd
@@ -84,5 +84,5 @@ var precedences = map[lexer.Token]Precedence{
 	lexer.AdditionAssignment:           Assignment,
 	lexer.Assignment:                   Assignment,
 
-	lexer.Comma: Coma,
+	lexer.Comma: Comma,
 }

@@ -123,3 +123,26 @@ func TestPrint_PropertyAccess(t *testing.T) {
 		})
 	}
 }
+
+func TestPrint_Arrays(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		input    string
+		expected string
+		options  printer.Options
+	}{
+		{"[1,2,3]", "[1, 2, 3];\n", printer.Options{Semi: true}},
+		{"[[1,2],3]", "[[1, 2], 3];\n", printer.Options{Semi: true}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.input, func(t *testing.T) {
+			t.Parallel()
+
+			program, err := parser.Parse(tc.input)
+			require.NoError(t, err)
+
+			bytes := printer.Print(program, tc.options)
+			assert.Equal(t, tc.expected, string(bytes))
+		})
+	}
+}
