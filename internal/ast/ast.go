@@ -151,6 +151,7 @@ func (ue *BinaryExpression) expression()          {}
 func (ce *ConditionalExpression) expression()     {}
 func (pae *PropertyAccessExpression) expression() {}
 func (fc *FunctionCall) expression()              {}
+func (ue *UpdateExpression) expression()          {}
 
 type ConditionalExpression struct {
 	Condition Expression
@@ -208,6 +209,12 @@ type PropertyAccessExpression struct {
 type FunctionCall struct {
 	Fn   Expression
 	Args []Expression
+}
+
+type UpdateExpression struct {
+	Operator lexer.Token
+	Argument Expression
+	Prefix   bool
 }
 
 type ArrayLiteralExpression struct {

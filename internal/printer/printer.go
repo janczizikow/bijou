@@ -103,16 +103,22 @@ func (p *printer) printStatement(stmt ast.Statement) {
 		if s.Init != nil {
 			p.printStatement(s.Init)
 		}
-		p.printSemicolonAfterStatement()
+		p.print(";")
 		p.printExpression(s.Condition, parser.Lowest)
-		p.printSemicolonAfterStatement()
+		p.print(";")
 		if s.Afterthought != nil {
 			p.printExpression(s.Afterthought, parser.Lowest)
 		}
 		p.print(")")
-		p.printSpace()
-		if s.Body != nil {
-			p.printStatement(s.Body)
+		_, isEmptyBody := s.Body.(*ast.EmptyStatement)
+		if !isEmptyBody {
+			p.printSpace()
+		}
+		p.printStatement(s.Body)
+		if isEmptyBody {
+			p.printNewLine()
+		} else {
+			p.printSemicolonAfterStatement()
 		}
 	case *ast.ForInStatement:
 		p.printIndent()
@@ -197,7 +203,6 @@ func (p *printer) printStatement(stmt ast.Statement) {
 		p.printSpace()
 		p.printBlock(s.Body, true)
 	case *ast.EmptyStatement:
-		p.printIndent()
 		p.print(";")
 	default:
 		panic(fmt.Sprintf("Unexpected statement type: %T", s))
@@ -272,6 +277,14 @@ func (p *printer) printExpression(expr ast.Expression, presedence parser.Precede
 			p.printExpression(arg, parser.Comma)
 		}
 		p.print(")")
+	case *ast.UpdateExpression:
+		if e.Prefix {
+			p.print(e.Operator.String())
+		}
+		p.printExpression(e.Argument, parser.Prefix)
+		if !e.Prefix {
+			p.print(e.Operator.String())
+		}
 	case nil:
 		break
 	default:

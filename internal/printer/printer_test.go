@@ -75,11 +75,16 @@ x = 4;
 			expected: "function add(a, b) {\n  return a + b;\n}\n",
 			options:  printer.Options{Semi: true},
 		},
-		// {
-		// 	input:    "for(;;);",
-		// 	expected: "for (;;);\n",
-		// 	options:  printer.Options{Semi: false},
-		// },
+		{
+			input:    "for(;;);",
+			expected: "for (;;);\n",
+			options:  printer.Options{Semi: true},
+		},
+		{
+			input:    "for(true;;);",
+			expected: "for (true;;);\n",
+			options:  printer.Options{Semi: true},
+		},
 		{
 			input:    "1 + 2 * 3 - 4",
 			expected: "1 + 2 * 3 - 4\n",

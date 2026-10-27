@@ -308,6 +308,41 @@ func TestParsePropertyAccessors(t *testing.T) {
 	}
 }
 
+func TestParseUpdateExpression(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		input    string
+		wantErr  bool
+		expected ast.Expression
+	}{
+		{"x++", false, &ast.UpdateExpression{Operator: lexer.Increment, Argument: &ast.Identifier{Name: "x"}}},
+		{"--x", false, &ast.UpdateExpression{Operator: lexer.Decrement, Argument: &ast.Identifier{Name: "x"}, Prefix: true}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.input, func(t *testing.T) {
+			t.Parallel()
+
+			program, err := parser.Parse(tc.input)
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.ErrorContains(t, err, "SyntaxError")
+			} else {
+				require.NoError(t, err)
+				assert.Len(t, program.Statements, 1)
+
+				expr, ok := program.Statements[0].(*ast.ExpressionStatement)
+				require.True(t, ok, fmt.Sprintf("Expected *ast.ExpressionStatement, got %T", program.Statements[0]))
+				require.NotNil(t, expr)
+
+				got, ok := expr.Expression.(*ast.UpdateExpression)
+				require.True(t, ok, fmt.Sprintf("Expected *ast.UpdateExpression, got %T", expr.Expression))
+
+				assert.Equal(t, tc.expected, got)
+			}
+		})
+	}
+}
+
 func TestParseFunctionCall(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
@@ -466,28 +501,30 @@ func TestParseForStatement(t *testing.T) {
 			input:    "for (;;);",
 			expected: &ast.ForStatement{Body: &ast.EmptyStatement{}},
 		},
-		// TODO:
-		// {
-		// 	name:  "for loop",
-		// 	input: `for (let i = 0; i < arr.length;i++) {}`,
-		// 	expected: &ast.ForStatement{
-		// 		Init: &ast.VariableDeclaration{
-		// 			Token: lexer.LET,
-		// 			Name:  &ast.Identifier{Name: "i"},
-		// 			Value: &ast.NumberLiteral{Value: "0"},
-		// 		},
-		// 		Condition: &ast.BinaryExpression{
-		// 			Operator: lexer.LT,
-		// 			Left:     &ast.Identifier{Name: "i"},
-		// 			Right: &ast.PropertyAccessExpression{
-		// 				Object: &ast.Identifier{Name: "arr"},
-		// 				Field:  &ast.Identifier{Name: "length"},
-		// 			},
-		// 		},
-		// 		Afterthought: nil,
-		// 		Body:         &ast.EmptyStatement{},
-		// 	},
-		// },
+		{
+			name:  "for loop",
+			input: `for (let i = 0; i < arr.length; i++) {}`,
+			expected: &ast.ForStatement{
+				Init: &ast.VariableDeclaration{
+					Token: lexer.LET,
+					Name:  &ast.Identifier{Name: "i"},
+					Value: &ast.NumberLiteral{Value: "0"},
+				},
+				Condition: &ast.BinaryExpression{
+					Operator: lexer.LT,
+					Left:     &ast.Identifier{Name: "i"},
+					Right: &ast.PropertyAccessExpression{
+						Object: &ast.Identifier{Name: "arr"},
+						Field:  &ast.Identifier{Name: "length"},
+					},
+				},
+				Afterthought: &ast.UpdateExpression{
+					Operator: lexer.Increment,
+					Argument: &ast.Identifier{Name: "i"},
+				},
+				Body: &ast.BlockStatement{Statements: []ast.Statement{}},
+			},
+		},
 	}
 
 	for _, tc := range cases {

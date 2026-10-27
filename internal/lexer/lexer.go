@@ -254,7 +254,6 @@ func (l *Lexer) Next() {
 	case '~':
 		l.Token = BitwiseNOT
 		l.step()
-
 	case '<':
 		// '<' or '<<' or '<=' or '<<='
 		switch l.peek() {
@@ -274,7 +273,6 @@ func (l *Lexer) Next() {
 			l.Token = LT
 		}
 		l.step()
-
 	case '>':
 		// '>' or '>>' or '>>>' or '>=' or '>>=' or '>>>='
 		switch l.peek() {
@@ -338,7 +336,6 @@ func (l *Lexer) Next() {
 	case ';':
 		l.Token = Semi
 		l.step()
-
 	// TODO: template literals?
 	case '\'', '"', '`':
 		quote := l.current
@@ -499,14 +496,11 @@ func isWhitespace(chr rune) bool {
 }
 
 func isIdentifierStart(chr rune) bool {
-	return chr == '$' || chr == '_' ||
-		'a' <= chr && chr <= 'z' || 'A' <= chr && chr <= 'Z'
+	return chr == '$' || chr == '_' || unicode.IsLetter(chr)
 }
 
 func isIdentifierPart(chr rune) bool {
-	return chr == '$' || chr == '_' ||
-		'a' <= chr && chr <= 'z' || 'A' <= chr && chr <= 'Z' ||
-		'0' <= chr && chr <= '9'
+	return isIdentifierStart(chr) || isDigit(chr)
 }
 
 func isDigit(chr rune) bool {

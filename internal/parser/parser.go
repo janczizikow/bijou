@@ -349,8 +349,19 @@ func (p *Parser) parsePrefix() ast.Expression {
 		}
 		p.lexer.Next()
 		return &ast.ArrayLiteralExpression{Elements: elements}
+	case lexer.Increment, lexer.Decrement:
+		op := p.lexer.Token
+		p.lexer.Next()
+		arg := p.parseExpression(Prefix)
+		switch arg.(type) {
+		case *ast.Identifier, *ast.PropertyAccessExpression:
+			return &ast.UpdateExpression{Operator: op, Argument: arg, Prefix: true}
+		default:
+			panic(lexer.LexerPanic{Msg: "SyntaxError: Invalid left-hand side in prefix operation."})
+		}
 	case lexer.LParen:
 		p.lexer.Next()
+		// TODO: group???
 		return nil
 	default:
 		p.lexer.Next()
@@ -424,6 +435,15 @@ func (p *Parser) parseInfix(left ast.Expression) ast.Expression {
 			Optional: optional,
 			Computed: computed,
 		}
+	case lexer.Increment, lexer.Decrement:
+		op := p.lexer.Token
+		p.lexer.Next()
+		switch left.(type) {
+		case *ast.Identifier, *ast.PropertyAccessExpression:
+			return &ast.UpdateExpression{Operator: op, Argument: left}
+		default:
+			panic(lexer.LexerPanic{Msg: "SyntaxError: Invalid left-hand side in postfix operation."})
+		}
 	case lexer.LParen:
 		p.lexer.Next()
 		args := make([]ast.Expression, 0)
@@ -465,8 +485,7 @@ func Parse(input string) (program *ast.Program, err error) {
 		}
 	}()
 
-	l := lexer.New(input)
-	p := New(l)
+	p := New(lexer.New(input))
 
 	for p.lexer.Token != lexer.EOF {
 		stmt := p.parseStatement()
