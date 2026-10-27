@@ -8,7 +8,8 @@ https://github.com/estree/estree
 TODOS:
 - [ ] lexer
   - [ ] handle all tokens?
-    - [ ] private identifiers (eg.: #foo)
+    - [x] private identifiers (eg.: #foo)
+      - [ ] syntax errors according to spec?
     - [ ] TypeScript decorators (eg.: @sealed)
     - [ ] comments :(
   - [x] string literals
@@ -26,6 +27,7 @@ TODOS:
   - [ ] figure out how to deal with operator precedence
 - [x] printer
   - [ ] bugs
+  - [ ] use strings builder
 
 ## Usage
 

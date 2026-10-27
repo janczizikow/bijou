@@ -6,5 +6,6 @@ vendor:
 	@go mod verify
 	@go mod vendor
 
+.PHONY: test
 test:
 	go test -race -cover ./...
