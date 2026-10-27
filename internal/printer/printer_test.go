@@ -77,14 +77,14 @@ x = 4;
 		},
 		// {
 		// 	input:    "for(;;);",
-		// 	expected: "for(;;);\n",
+		// 	expected: "for (;;);\n",
 		// 	options:  printer.Options{Semi: false},
 		// },
-		// {
-		// 	input:    "1 + 2 * 3 - 4",
-		// 	expected: "1 + 2 * 3 - 4\n",
-		// 	options:  printer.Options{Semi: false},
-		// },
+		{
+			input:    "1 + 2 * 3 - 4",
+			expected: "1 + 2 * 3 - 4\n",
+			options:  printer.Options{Semi: false},
+		},
 	}
 
 	for _, tt := range cases {

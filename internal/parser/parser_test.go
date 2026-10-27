@@ -346,3 +346,50 @@ func TestParseArrays(t *testing.T) {
 		assert.ErrorContains(t, err, "SyntaxError")
 	})
 }
+
+func TestParseForStatement(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name     string
+		input    string
+		expected ast.Statement
+	}{
+		{
+			name:     "empty for loop",
+			input:    "for (;;);",
+			expected: &ast.ForStatement{Body: &ast.EmptyStatement{}},
+		},
+		// TODO:
+		// {
+		// 	name:  "for loop",
+		// 	input: `for (let i = 0; i < arr.length;i++) {}`,
+		// 	expected: &ast.ForStatement{
+		// 		Init: &ast.VariableDeclaration{
+		// 			Token: lexer.LET,
+		// 			Name:  &ast.Identifier{Name: "i"},
+		// 			Value: &ast.NumberLiteral{Value: "0"},
+		// 		},
+		// 		Condition: &ast.BinaryExpression{
+		// 			Operator: lexer.LT,
+		// 			Left:     &ast.Identifier{Name: "i"},
+		// 			Right: &ast.PropertyAccessExpression{
+		// 				Object: &ast.Identifier{Name: "arr"},
+		// 				Field:  &ast.Identifier{Name: "length"},
+		// 			},
+		// 		},
+		// 		Afterthought: nil,
+		// 		Body:         &ast.EmptyStatement{},
+		// 	},
+		// },
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			program, err := parser.Parse(tc.input)
+			require.NoError(t, err)
+			assert.Len(t, program.Statements, 1)
+			assert.Equal(t, tc.expected, program.Statements[0])
+		})
+	}
+}

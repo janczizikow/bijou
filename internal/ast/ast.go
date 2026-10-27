@@ -67,16 +67,16 @@ type ImportStatement struct {
 }
 
 type ForStatement struct {
-	Init         *Statement
-	Condition    *Expression
-	Afterthought *Expression
-	Body         *Statement
+	Init         Statement
+	Condition    Expression
+	Afterthought Expression
+	Body         Statement
 }
 
 type ForInStatement struct {
 	Variable Statement
 	Object   Expression
-	Body     *Statement
+	Body     Statement
 }
 
 type ForOfStatement struct {
@@ -87,14 +87,14 @@ type ForOfStatement struct {
 
 type IfStatement struct {
 	Condition Expression
-	Then      *Statement
-	Else      *Statement
+	Then      Statement
+	Else      Statement
 }
 
 type VariableDeclaration struct {
 	Token lexer.Token // the first token of the expression
 	Name  *Identifier
-	Value *Expression
+	Value Expression
 }
 
 type FunctionDeclaration struct {

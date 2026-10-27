@@ -85,7 +85,7 @@ func (p *Parser) parseStatement() ast.Statement {
 		return &ast.VariableDeclaration{
 			Token: kind,
 			Name:  name,
-			Value: &value,
+			Value: value,
 		}
 	case lexer.IF:
 		p.lexer.Next()
@@ -98,7 +98,7 @@ func (p *Parser) parseStatement() ast.Statement {
 			p.lexer.Next()
 			elseStmt = p.parseStatement()
 		}
-		return &ast.IfStatement{Condition: cond, Then: &stmt, Else: &elseStmt}
+		return &ast.IfStatement{Condition: cond, Then: stmt, Else: elseStmt}
 	case lexer.THROW:
 		p.lexer.Next()
 		if p.lexer.Token == lexer.EOF || p.lexer.Token == lexer.Semi {
@@ -188,6 +188,7 @@ func (p *Parser) parseForStatement() ast.Statement {
 	if p.lexer.Token != lexer.Semi {
 		left = p.parseStatement()
 	}
+	p.lexer.Expect(lexer.Semi)
 
 	if p.lexer.Token == lexer.IN {
 		if left == nil {
@@ -197,7 +198,7 @@ func (p *Parser) parseForStatement() ast.Statement {
 		right := p.parseExpression(Lowest)
 		p.lexer.Expect(lexer.RParen)
 		body := p.parseStatement()
-		return &ast.ForInStatement{Variable: left, Object: right, Body: &body}
+		return &ast.ForInStatement{Variable: left, Object: right, Body: body}
 	}
 
 	var cond ast.Expression
@@ -215,7 +216,7 @@ func (p *Parser) parseForStatement() ast.Statement {
 		p.lexer.Expect(lexer.RParen)
 	}
 	body := p.parseStatement()
-	return &ast.ForStatement{Init: &left, Condition: &cond, Afterthought: &step, Body: &body}
+	return &ast.ForStatement{Init: left, Condition: cond, Afterthought: step, Body: body}
 }
 
 func (p *Parser) parseFunction(isAsync bool) ast.Statement {
