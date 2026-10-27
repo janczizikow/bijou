@@ -7,6 +7,7 @@ import (
 )
 
 func TestCheckPattern(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		pattern string
 		result  bool
@@ -17,7 +18,9 @@ func TestCheckPattern(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		assert.Equal(t, tt.result, checkPattern(tt.pattern))
+		t.Run(tt.pattern, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.result, checkPattern(tt.pattern))
+		})
 	}
-
 }

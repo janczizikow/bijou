@@ -7,6 +7,7 @@ import (
 )
 
 func TestIdentifier(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		token    string
 		expected string
@@ -20,7 +21,6 @@ func TestIdentifier(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.token, func(t *testing.T) {
 			t.Parallel()
-
 			l := New(tt.token)
 			if tt.valid {
 				assert.EqualValues(t, Identifier, l.Token)
@@ -33,6 +33,7 @@ func TestIdentifier(t *testing.T) {
 }
 
 func TestStringLiterals(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		token    string
 		expected string
@@ -64,6 +65,7 @@ func TestStringLiterals(t *testing.T) {
 }
 
 func TestNumberLiterals(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		token    string
 		expected string
@@ -80,7 +82,7 @@ func TestNumberLiterals(t *testing.T) {
 		{"0987.6543", "0987.6543"},
 		{"01289", "01289"},
 		{"01289.345", "01289.345"},
-		{".123", "0.123"},
+		{".123", ".123"},
 		{"0.", "0"},
 		{"123.", "123"},
 		{"999999999", "999999999"},
@@ -111,7 +113,6 @@ func TestNumberLiterals(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.token, func(t *testing.T) {
 			t.Parallel()
-
 			l := New(tt.token)
 			assert.EqualValues(t, NUMERIC_LITERAL, l.Token)
 			assert.Equal(t, tt.expected, l.Literal)
@@ -120,6 +121,7 @@ func TestNumberLiterals(t *testing.T) {
 }
 
 func TestBigIntLiterals(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		token    string
 		expected string
@@ -138,7 +140,6 @@ func TestBigIntLiterals(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.token, func(t *testing.T) {
 			t.Parallel()
-
 			l := New(tt.token)
 			assert.EqualValues(t, BigIntLiteral, l.Token)
 			assert.Equal(t, tt.expected, l.Literal)
@@ -147,6 +148,7 @@ func TestBigIntLiterals(t *testing.T) {
 }
 
 func TestInvalidNumberLiterals(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		token string
 		msg   string
@@ -183,7 +185,35 @@ func TestInvalidNumberLiterals(t *testing.T) {
 	}
 }
 
+func TestPropertyAccessors(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		input    string
+		expected []Token
+	}{
+		{"object.propertyName", []Token{Identifier, Dot, Identifier}},
+		{"object?.propertyName", []Token{Identifier, OptionalChaning, Identifier}},
+		{`object[expression]`, []Token{Identifier, LBracket, Identifier, RBracket}},
+		{`object.#privateProperty`, []Token{Identifier, Dot, PrivateIdentifier}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.input, func(t *testing.T) {
+			t.Parallel()
+			l := New(tc.input)
+			out := make([]Token, 0)
+			for l.Token != EOF {
+				out = append(out, l.Token)
+				l.Next()
+			}
+			assert.Equal(t, tc.expected, out)
+		})
+	}
+}
+
 func TestTokens(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		token    string
 		expected Token
@@ -306,7 +336,6 @@ func TestTokens(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.token, func(t *testing.T) {
 			t.Parallel()
-
 			l := New(tt.token)
 			assert.Equal(t, tt.expected, l.Token)
 		})

@@ -10,7 +10,7 @@ import (
 // Lexer represents a lexical analyzer for JavaScript source code.
 // It takes a string as input and converts it into a sequence of tokens.
 type Lexer struct {
-	input string // original input
+	source string // original input
 
 	Token   Token  // current token
 	Literal string // the token literal value, if any
@@ -24,18 +24,18 @@ type LexerPanic struct {
 	Msg string
 }
 
-func New(input string) *Lexer {
-	l := &Lexer{input: input}
+func New(source string) *Lexer {
+	l := &Lexer{source: source}
 	l.step()
 	l.Next()
 	return l
 }
 
 func (l *Lexer) step() {
-	if l.end < len(l.input) {
-		r, width := utf8.DecodeRuneInString(l.input[l.end:])
+	if l.end < len(l.source) {
+		r, width := utf8.DecodeRuneInString(l.source[l.end:])
 		if width == 0 {
-			l.end = len(l.input)
+			l.end = len(l.source)
 			l.current = -1
 		}
 		l.start = l.end
@@ -43,13 +43,13 @@ func (l *Lexer) step() {
 		l.current = r
 	} else {
 		l.start = l.end
-		l.end = len(l.input)
+		l.end = len(l.source)
 		l.current = -1
 	}
 }
 
 func (l *Lexer) peek() rune {
-	r, width := utf8.DecodeRuneInString(l.input[l.end:])
+	r, width := utf8.DecodeRuneInString(l.source[l.end:])
 	if width == 0 {
 		return -1
 	}
@@ -72,13 +72,17 @@ func (l *Lexer) Next() {
 
 	case '#':
 		if l.start == 0 && l.peek() == '!' {
+			// TODO: parse whole HashBang
+			l.step()
+			l.step()
 			l.Token = HashBang
 			l.Literal = "#!"
+		} else {
+			// private identifier e.g.: #foo
 			l.step()
-			l.step()
+			l.Literal = l.scanIdentifier()
+			l.Token = PrivateIdentifier
 		}
-		// TODO: syntax error?
-
 	case '!':
 		// '!' or '!=' or '!=='
 		switch l.peek() {
@@ -237,18 +241,16 @@ func (l *Lexer) Next() {
 			case '=':
 				l.step()
 				l.Token = NullishCoalescingAssignment
-			case '.':
-				l.step()
-				// TODO: special token for '?.'
-				l.Token = Question
 			default:
 				l.Token = NullishCoalescing
 			}
+		case '.':
+			l.step()
+			l.Token = OptionalChaning
 		default:
 			l.Token = Question
 		}
 		l.step()
-
 	case '~':
 		l.Token = BitwiseNOT
 		l.step()
@@ -310,8 +312,7 @@ func (l *Lexer) Next() {
 	case '.':
 		if isDigit(l.peek()) {
 			l.Token = NUMERIC_LITERAL
-			// append 0
-			l.Literal = fmt.Sprintf("0%s", l.scanNumber())
+			l.Literal = l.scanNumber()
 		} else {
 			l.Token = Dot
 			l.step()
@@ -361,7 +362,7 @@ func (l *Lexer) Next() {
 			}
 		}
 		l.Token = STRING_LITERAL
-		l.Literal = l.input[start : l.start-1]
+		l.Literal = l.source[start : l.start-1]
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 		literal := l.scanNumber()
 		if l.current == 'n' {
@@ -407,7 +408,7 @@ func (l *Lexer) scanIdentifier() string {
 	for isIdentifierPart(l.current) {
 		l.step()
 	}
-	return l.input[position:l.start]
+	return l.source[position:l.start]
 }
 
 func (l *Lexer) scanNumber() string {
@@ -422,7 +423,7 @@ func (l *Lexer) scanNumber() string {
 				panic(LexerPanic{Msg: "SyntaxError: Invalid hexadecimal literal"})
 			}
 			l.scanNumberPart(isHexDigit)
-			return l.input[position:l.start]
+			return l.source[position:l.start]
 		case 'o', 'O':
 			l.step() // consume '0'
 			l.step() // consume 'o' or 'O'
@@ -430,7 +431,7 @@ func (l *Lexer) scanNumber() string {
 				panic(LexerPanic{Msg: "SyntaxError: Invalid octal literal"})
 			}
 			l.scanNumberPart(isOctalDigit)
-			return l.input[position:l.start]
+			return l.source[position:l.start]
 		case 'b', 'B':
 			l.step() // consume '0'
 			l.step() // consume 'b' or 'B'
@@ -438,7 +439,7 @@ func (l *Lexer) scanNumber() string {
 				panic(LexerPanic{Msg: "SyntaxError: Invalid binary literal"})
 			}
 			l.scanNumberPart(isBinaryDigit)
-			return l.input[position:l.start]
+			return l.source[position:l.start]
 		}
 		if l.peek() == '_' {
 			panic(LexerPanic{Msg: "SyntaxError: Numeric separator can not be used after leading 0."})
@@ -464,9 +465,9 @@ func (l *Lexer) scanNumber() string {
 			l.scanNumberPart(isDigit)
 		} else if nextRune == '+' || nextRune == '-' {
 			// Peek two characters ahead to ensure a digit follows the sign
-			_, width := utf8.DecodeRuneInString(l.input[l.end:])
-			if l.end+width < len(l.input) {
-				nextNextRune, _ := utf8.DecodeRuneInString(l.input[l.end+width:])
+			_, width := utf8.DecodeRuneInString(l.source[l.end:])
+			if l.end+width < len(l.source) {
+				nextNextRune, _ := utf8.DecodeRuneInString(l.source[l.end+width:])
 				if isDigit(nextNextRune) {
 					l.step() // consume 'e' or 'E'
 					l.step() // consume sign
@@ -475,7 +476,7 @@ func (l *Lexer) scanNumber() string {
 			}
 		}
 	}
-	return l.input[position:l.start]
+	return l.source[position:l.start]
 }
 
 func (l *Lexer) scanNumberPart(isDigitFunc func(rune) bool) {

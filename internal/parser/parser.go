@@ -7,40 +7,20 @@ import (
 	"github.com/janczizikow/bijou/internal/lexer"
 )
 
-type Precedence uint8
-
-// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Operator_precedence
-const (
-	Lowest Precedence = iota
-	Coma
-	Spread
-	Yield
-	Assignment
-	Conditional
-	NullishCoalescing
-	LogicalOr
-	LogicalAnd
-	BitwiseOr
-	BitwiseXor
-	BitwiseAnd
-	Equality
-	Comparison
-	Shift
-	Add
-	Multiply
-	Prefix
-	Postfix
-	LNew
-	Call
-	Member
-)
-
 type Parser struct {
 	lexer *lexer.Lexer
 }
 
 func New(l *lexer.Lexer) *Parser {
 	return &Parser{lexer: l}
+}
+
+// precedence lookups the precedence of a current token.
+func (p *Parser) precedence() Precedence {
+	if prec, ok := precedences[p.lexer.Token]; ok {
+		return prec
+	}
+	return Lowest
 }
 
 func (p *Parser) parseStatement() ast.Statement {
@@ -284,44 +264,33 @@ func (p *Parser) parseFunction(isAsync bool) ast.Statement {
 }
 
 func (p *Parser) parseExpression(precedence Precedence) ast.Expression {
-	prefix := p.parsePrefix(precedence)
+	expr := p.parsePrefix()
 
-	// switch p.lexer.Token {
-	// case lexer.NUMBER_LITERAL:
-	// 	v := p.lexer.Literal
-	// 	p.lexer.Next()
-	// 	return &ast.NumberLiteral{
-	// 		Value: v,
-	// 	}
-	// case lexer.Identifier:
-	// 	name := p.lexer.Literal
-	// 	p.lexer.Next()
-	// 	return &ast.Identifier{
-	// 		Name:  name,
-	// 		Token: lexer.Identifier,
-	// 	}
-	// default:
-	// 	return &ast.Assignment{
-	// 		Left:     p.parseExpression(),
-	// 		Right:    p.parseExpression(),
-	// 		Operator: p.lexer.Token,
-	// 	}
-	// }
+	if precedence < p.precedence() {
+		infix := p.parseInfix(expr)
+		if infix == nil {
+			return expr
+		}
+		// p.lexer.Next() // consume semi???
+		expr = infix
+	}
 
-	return p.parseSuffix(prefix, precedence)
+	return expr
 }
 
-func (p *Parser) parsePrefix(precedence Precedence) ast.Expression {
+func (p *Parser) parsePrefix() ast.Expression {
 	switch p.lexer.Token {
-	case lexer.Identifier:
+	case lexer.Identifier, lexer.PrivateIdentifier:
+		tkn := p.lexer.Token
 		name := p.lexer.Literal
 		p.lexer.Next()
 		// TODO: nested switch?
-		return &ast.Identifier{Name: name}
-	case lexer.Exclamation:
+		return &ast.Identifier{Name: name, Private: tkn == lexer.PrivateIdentifier}
+	case lexer.Exclamation, lexer.Minus:
+		tkn := p.lexer.Token
 		p.lexer.Next()
 		// TODO: syntax check?
-		return &ast.UnaryExpression{Operator: lexer.Exclamation, Right: p.parseExpression(Prefix)}
+		return &ast.UnaryExpression{Operator: tkn, Right: p.parseExpression(Prefix)}
 	case lexer.TRUE, lexer.FALSE:
 		value := p.lexer.Token == lexer.TRUE
 		p.lexer.Next()
@@ -348,25 +317,59 @@ func (p *Parser) parsePrefix(precedence Precedence) ast.Expression {
 	}
 }
 
-func (p *Parser) parseSuffix(left ast.Expression, precedence Precedence) ast.Expression {
+func (p *Parser) parseInfix(left ast.Expression) ast.Expression {
+	prec := p.precedence()
 	switch p.lexer.Token {
-	case lexer.Assignment:
+	case lexer.Assignment, lexer.MultiplicationAssignment,
+		lexer.DivisionAssignment, lexer.RemainderAssignment,
+		lexer.AdditionAssignment, lexer.SubtractionAssignment,
+		lexer.LeftShiftAssignment, lexer.RightShiftAssignment,
+		lexer.UnsignedRightShiftAssignment, lexer.BitwiseANDAssignment,
+		lexer.BitwiseXORAssignment, lexer.BitwiseORAssignment,
+		lexer.ExponentiationAssignment, lexer.LogicalANDAssignment,
+		lexer.LogicalORAssignment, lexer.NullishCoalescingAssignment:
+		op := p.lexer.Token
 		p.lexer.Next()
 		return &ast.Assignment{
+			Operator: op,
 			Left:     left,
-			Right:    p.parseExpression(Assignment),
-			Operator: lexer.Assignment,
+			Right:    p.parseExpression(prec),
 		}
-	case lexer.Plus:
+
+	case
+		// arithmetic
+		lexer.Exponentiation, lexer.Multiplication, lexer.Division,
+		lexer.Remainder, lexer.Plus, lexer.Minus,
+		// relational
+		lexer.LT, lexer.LTE, lexer.GT, lexer.GTE, lexer.INSTANCEOF, lexer.IN,
+		// equality
+		lexer.Equality, lexer.Inequality,
+		lexer.StrictEquality, lexer.StrictInequality,
+		// bitwise shift
+		lexer.BitwiseShiftLeft, lexer.BitwiseShiftRight, lexer.BitwiseUnsignedShiftRight,
+		// binary bitwise
+		lexer.BitwiseAND, lexer.BitwiseOR, lexer.BitwiseXOR,
+		// logical
+		lexer.LogicalAND, lexer.LogicalOR, lexer.NullishCoalescing:
 		op := p.lexer.Token
 		p.lexer.Next()
 		return &ast.BinaryExpression{
-			Left:     left,
-			Right:    p.parseExpression(Lowest),
 			Operator: op,
+			Left:     left,
+			Right:    p.parseExpression(prec),
+		}
+	case lexer.Dot, lexer.OptionalChaning:
+		tkn := p.lexer.Token
+		p.lexer.Next()
+		return &ast.PropertyAccessExpression{
+			Object:   left,
+			Field:    p.parseExpression(prec),
+			Optional: tkn == lexer.OptionalChaning,
+			// TODO:
+			// Computed: false,
 		}
 	default:
-		return left
+		return nil
 	}
 }
 

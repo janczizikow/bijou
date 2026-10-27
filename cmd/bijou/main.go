@@ -37,7 +37,7 @@ func main() {
 	}
 	app := cli.New(opts)
 
-	if *printVersion {
+	if printVersion != nil && *printVersion {
 		fmt.Println(version)
 		os.Exit(0)
 	}

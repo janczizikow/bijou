@@ -3,12 +3,15 @@ package printer_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/janczizikow/bijou/internal/parser"
 	"github.com/janczizikow/bijou/internal/printer"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestPrint(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		input    string
 		expected string
@@ -79,20 +82,44 @@ x = 4;
 		// },
 		// {
 		// 	input:    "1 + 2 * 3 - 4",
-		// 	expected: "1 + 2 + 3 + 4\n",
+		// 	expected: "1 + 2 * 3 - 4\n",
 		// 	options:  printer.Options{Semi: false},
 		// },
 	}
 
 	for _, tt := range cases {
 		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
+
 			program, err := parser.Parse(tt.input)
-			if err != nil {
-				t.Fatal(err)
-			}
+			require.NoError(t, err)
 
 			bytes := printer.Print(program, tt.options)
 			assert.Equal(t, tt.expected, string(bytes))
+		})
+	}
+}
+
+func TestPrint_PropertyAccess(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		input    string
+		expected string
+		options  printer.Options
+	}{
+		{"object.propertyName", "object.propertyName;\n", printer.Options{Semi: true}},
+		{"object?.propertyName", "object?.propertyName;\n", printer.Options{Semi: true}},
+		{"object.#propertyName", "object.#propertyName;\n", printer.Options{Semi: true}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.input, func(t *testing.T) {
+			t.Parallel()
+
+			program, err := parser.Parse(tc.input)
+			require.NoError(t, err)
+
+			bytes := printer.Print(program, tc.options)
+			assert.Equal(t, tc.expected, string(bytes))
 		})
 	}
 }

@@ -48,6 +48,8 @@ var tokenToString = map[Token]string{
 	LogicalOR:         "||",
 	NullishCoalescing: "??",
 
+	OptionalChaning: "?.",
+
 	LT:  "<",
 	GT:  ">",
 	LTE: "<=",

@@ -14,7 +14,7 @@ type Program struct {
 	Statements []Statement
 }
 
-// Statements
+// #region Statements
 
 func (bs *BlockStatement) statement()      {}
 func (bs *BreakStatement) statement()      {}
@@ -135,18 +135,19 @@ type WhileStatement struct {
 	Body      *BlockStatement
 }
 
-// Expressions
+// #region Expressions
 
-func (a *Assignment) expression()             {}
-func (bl *BooleanLiteral) expression()        {}
-func (bil *BigIntLiteral) expression()        {}
-func (nl *NumberLiteral) expression()         {}
-func (sl *StringLiteral) expression()         {}
-func (nl *NullLiteral) expression()           {}
-func (i *Identifier) expression()             {}
-func (ue *UnaryExpression) expression()       {}
-func (ue *BinaryExpression) expression()      {}
-func (ce *ConditionalExpression) expression() {}
+func (a *Assignment) expression()                 {}
+func (bl *BooleanLiteral) expression()            {}
+func (bil *BigIntLiteral) expression()            {}
+func (nl *NumberLiteral) expression()             {}
+func (sl *StringLiteral) expression()             {}
+func (nl *NullLiteral) expression()               {}
+func (i *Identifier) expression()                 {}
+func (ue *UnaryExpression) expression()           {}
+func (ue *BinaryExpression) expression()          {}
+func (ce *ConditionalExpression) expression()     {}
+func (pae *PropertyAccessExpression) expression() {}
 
 type ConditionalExpression struct {
 	Condition Expression
@@ -155,9 +156,9 @@ type ConditionalExpression struct {
 }
 
 type Assignment struct {
+	Operator lexer.Token
 	Left     Expression
 	Right    Expression
-	Operator lexer.Token
 }
 
 type BooleanLiteral struct {
@@ -179,7 +180,8 @@ type StringLiteral struct {
 type NullLiteral struct{}
 
 type Identifier struct {
-	Name string
+	Name    string
+	Private bool
 }
 
 type UnaryExpression struct {
@@ -191,4 +193,11 @@ type BinaryExpression struct {
 	Left     Expression
 	Operator lexer.Token
 	Right    Expression
+}
+
+type PropertyAccessExpression struct {
+	Object   Expression
+	Field    Expression
+	Optional bool
+	Computed bool
 }

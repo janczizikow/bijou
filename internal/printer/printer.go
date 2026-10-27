@@ -208,7 +208,11 @@ func (p *printer) printStatement(stmt ast.Statement) {
 func (p *printer) printExpression(expr ast.Expression, presedence parser.Precedence) {
 	switch e := expr.(type) {
 	case *ast.Identifier:
-		p.print(e.Name)
+		name := e.Name
+		if e.Private {
+			name = "#" + name
+		}
+		p.print(name)
 	case *ast.NumberLiteral:
 		p.print(e.Value)
 	case *ast.BigIntLiteral:
@@ -238,6 +242,14 @@ func (p *printer) printExpression(expr ast.Expression, presedence parser.Precede
 		p.print(e.Operator.String())
 		p.printSpace()
 		p.printExpression(e.Right, parser.Lowest)
+	case *ast.PropertyAccessExpression:
+		op := "."
+		if e.Optional {
+			op = "?."
+		}
+		p.printExpression(e.Object, parser.Lowest)
+		p.print(op)
+		p.printExpression(e.Field, parser.Lowest)
 	default:
 		panic(fmt.Sprintf("Unexpected expression type: %T", e))
 	}
