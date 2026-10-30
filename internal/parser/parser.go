@@ -89,6 +89,8 @@ func (p *Parser) parseStatement() ast.Statement {
 			elseStmt = p.parseStatement()
 		}
 		return &ast.IfStatement{Condition: cond, Then: stmt, Else: elseStmt}
+	case lexer.SWITCH:
+		return p.parseSwitchStatement()
 	case lexer.IMPORT:
 		p.lexer.Next()
 		var dflt, namespace *ast.Identifier
@@ -315,6 +317,18 @@ func (p *Parser) parseFunction(isAsync bool) ast.Statement {
 		IsGenerator: isGenerator,
 		IsAsync:     isAsync,
 	}
+}
+
+func (p *Parser) parseSwitchStatement() ast.Statement {
+	p.lexer.Next()
+	p.lexer.Expect(lexer.LParen)
+	expr := p.parseExpression(Lowest)
+	p.lexer.Expect(lexer.RParen)
+	p.lexer.Expect(lexer.LBrace)
+	// TODO: parse condition
+	p.lexer.Expect(lexer.RBrace)
+
+	return &ast.SwitchStatement{Discriminant: expr}
 }
 
 // #region Expressions

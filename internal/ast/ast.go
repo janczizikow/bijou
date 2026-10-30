@@ -35,6 +35,7 @@ func (ts *ThrowStatement) statement()      {}
 func (ts *TryCatchStatement) statement()   {}
 func (ws *WithStatement) statement()       {}
 func (ws *WhileStatement) statement()      {}
+func (ss *SwitchStatement) statement()     {}
 
 type BlockStatement struct {
 	Statements []Statement
@@ -135,6 +136,11 @@ type WithStatement struct {
 type WhileStatement struct {
 	Condition Expression
 	Body      *BlockStatement
+}
+
+type SwitchStatement struct {
+	Discriminant Expression
+	Cases        []any
 }
 
 // #region Expressions

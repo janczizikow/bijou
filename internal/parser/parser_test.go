@@ -49,7 +49,7 @@ func TestParse(t *testing.T) {
 	}
 }
 
-func TestAssignemnts(t *testing.T) {
+func TestAssignments(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name     string
@@ -167,6 +167,52 @@ func TestParseThrow(t *testing.T) {
 		{"throw;", true, nil},
 		{"throw", true, nil},
 		{"throw err", false, &ast.ThrowStatement{Argument: &ast.Identifier{Name: "err"}}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.input, func(t *testing.T) {
+			t.Parallel()
+			program, err := parser.Parse(tc.input)
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.ErrorContains(t, err, "SyntaxError")
+			} else {
+				require.NoError(t, err)
+				assert.Len(t, program.Statements, 1)
+				assert.Equal(t, tc.expected, program.Statements[0])
+			}
+		})
+	}
+}
+
+func TestParseSwitchStatement(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name     string
+		input    string
+		wantErr  bool
+		expected ast.Statement
+	}{
+		{
+			name:  "switch - no cases",
+			input: `switch (x > 5) {}`,
+			expected: &ast.SwitchStatement{
+				Discriminant: &ast.BinaryExpression{Operator: lexer.GT, Left: &ast.Identifier{Name: "x"}, Right: &ast.NumberLiteral{Value: "5"}},
+			},
+		},
+		{
+			name: "switch - cases",
+			input: `switch (x > 5) {
+		case 0:
+			break;
+		case 1:
+			break;
+			}`,
+			expected: &ast.SwitchStatement{
+				Discriminant: &ast.BinaryExpression{Operator: lexer.GT, Left: &ast.Identifier{Name: "x"}, Right: &ast.NumberLiteral{Value: "5"}},
+				Cases:        []any{},
+			},
+		},
 	}
 
 	for _, tc := range cases {
