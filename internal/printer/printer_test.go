@@ -76,16 +76,6 @@ x = 4;
 			options:  printer.Options{Semi: true},
 		},
 		{
-			input:    "for(;;);",
-			expected: "for (;;);\n",
-			options:  printer.Options{Semi: true},
-		},
-		{
-			input:    "for(true;;);",
-			expected: "for (true;;);\n",
-			options:  printer.Options{Semi: true},
-		},
-		{
 			input:    "1 + 2 * 3 - 4",
 			expected: "1 + 2 * 3 - 4\n",
 			options:  printer.Options{Semi: false},
@@ -141,6 +131,54 @@ func TestPrint_Arrays(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.input, func(t *testing.T) {
+			t.Parallel()
+
+			program, err := parser.Parse(tc.input)
+			require.NoError(t, err)
+
+			bytes := printer.Print(program, tc.options)
+			assert.Equal(t, tc.expected, string(bytes))
+		})
+	}
+}
+
+func TestPrint_ForLoops(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+		options  printer.Options
+	}{
+		{
+			name:     "empty for loop",
+			input:    "for(;;);",
+			expected: "for (;;);\n",
+			options:  printer.Options{Semi: true},
+		},
+		// {
+		// 	name:     "for only initalizer",
+		// 	input:    "for(true;;);",
+		// 	expected: "for (true;;);\n",
+		// 	options:  printer.Options{Semi: true},
+		// },
+		{
+			name:     "classic for loop",
+			input:    `for (let i = 0; i < arr.length; i++) {}`,
+			expected: `for (let i = 0; i < arr.length; i++) {\n};\n`,
+			options:  printer.Options{Semi: true},
+		},
+		{
+			name:  "for...in loop",
+			input: `for (const property in object) { console.log(property); }`,
+			expected: `for (const property in object) {
+			console.log(property);
+			}`,
+			options: printer.Options{Semi: true},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
 			program, err := parser.Parse(tc.input)

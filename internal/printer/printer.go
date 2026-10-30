@@ -93,7 +93,7 @@ func (p *printer) printStatement(stmt ast.Statement) {
 		p.printIf(s, true)
 	case *ast.ExpressionStatement:
 		p.printIndent()
-		p.printExpression(s.Expression, parser.Lowest)
+		p.printExpression(s.Expr, parser.Lowest)
 		p.printSemicolonAfterStatement()
 	case *ast.ForStatement:
 		p.printIndent()
@@ -104,7 +104,10 @@ func (p *printer) printStatement(stmt ast.Statement) {
 			p.printStatement(s.Init)
 		}
 		p.print(";")
-		p.printExpression(s.Condition, parser.Lowest)
+		if s.Condition != nil {
+			p.printSpace()
+			p.printExpression(s.Condition, parser.Lowest)
+		}
 		p.print(";")
 		if s.Afterthought != nil {
 			p.printExpression(s.Afterthought, parser.Lowest)
@@ -129,6 +132,22 @@ func (p *printer) printStatement(stmt ast.Statement) {
 		p.print("in")
 		p.printSpace()
 		p.printExpression(s.Object, parser.Lowest)
+		p.print(")")
+		p.printSpace()
+		p.printStatement(s.Body)
+	case *ast.ForOfStatement:
+		p.printIndent()
+		p.print("for")
+		p.printSpace()
+		if s.Await {
+			p.print("await")
+			p.printSpace()
+		}
+		p.print("(")
+		p.printStatement(s.Variable)
+		p.print("of")
+		p.printSpace()
+		p.printExpression(s.Iterable, parser.Lowest)
 		p.print(")")
 		p.printSpace()
 		p.printStatement(s.Body)
@@ -270,6 +289,10 @@ func (p *printer) printExpression(expr ast.Expression, presedence parser.Precede
 		if e.Computed {
 			p.print("]")
 		}
+	case *ast.ParenthesizedExpression:
+		p.print("(")
+		p.printExpression(e.Expr, parser.Comma)
+		p.print(")")
 	case *ast.FunctionCall:
 		p.printExpression(e.Fn, parser.Lowest)
 		p.print("(")
@@ -284,6 +307,14 @@ func (p *printer) printExpression(expr ast.Expression, presedence parser.Precede
 		p.printExpression(e.Argument, parser.Prefix)
 		if !e.Prefix {
 			p.print(e.Operator.String())
+		}
+	case *ast.NewExpression:
+		p.print("new")
+		p.printSpace()
+		p.printExpression(e.Constructor, parser.PNew)
+
+		for _, arg := range e.Arguments {
+			p.printExpression(arg, parser.Comma)
 		}
 	case nil:
 		break

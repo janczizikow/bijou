@@ -33,10 +33,10 @@ var precedences = map[lexer.Token]Precedence{
 	lexer.LBracket:        Call,
 	lexer.LParen:          Call, // TODO: could be Member acces as well?
 
+	lexer.NEW: PNew,
+
 	lexer.Increment: Postfix,
 	lexer.Decrement: Postfix,
-
-	// TODO: prefix vs. postfix operators
 
 	lexer.Exponentiation: Exponentiation,
 

@@ -56,7 +56,7 @@ type BreakStatement struct {
 }
 
 type ExpressionStatement struct {
-	Expression Expression
+	Expr Expression
 }
 
 type EmptyStatement struct{}
@@ -82,9 +82,10 @@ type ForInStatement struct {
 }
 
 type ForOfStatement struct {
+	Await    bool
 	Variable Statement
 	Iterable Expression
-	Body     *Statement
+	Body     Statement
 }
 
 type IfStatement struct {
@@ -145,13 +146,16 @@ func (bil *BigIntLiteral) expression()            {}
 func (nl *NumberLiteral) expression()             {}
 func (sl *StringLiteral) expression()             {}
 func (nl *NullLiteral) expression()               {}
+func (ole *ObjectLiteralExpression) expression()  {}
 func (i *Identifier) expression()                 {}
 func (ue *UnaryExpression) expression()           {}
 func (ue *BinaryExpression) expression()          {}
 func (ce *ConditionalExpression) expression()     {}
 func (pae *PropertyAccessExpression) expression() {}
+func (pe *ParenthesizedExpression) expression()   {}
 func (fc *FunctionCall) expression()              {}
 func (ue *UpdateExpression) expression()          {}
+func (ne *NewExpression) expression()             {}
 
 type ConditionalExpression struct {
 	Condition Expression
@@ -219,4 +223,17 @@ type UpdateExpression struct {
 
 type ArrayLiteralExpression struct {
 	Elements []Expression
+}
+
+type ObjectLiteralExpression struct {
+	// TODO: key and values?
+}
+
+type NewExpression struct {
+	Constructor Expression
+	Arguments   []Expression
+}
+
+type ParenthesizedExpression struct {
+	Expr Expression
 }

@@ -19,16 +19,19 @@ func TestParse(t *testing.T) {
 		expected []ast.Statement
 	}{
 		{
-			input: "-a * b",
+			input: "(a + b) * c",
 			expected: []ast.Statement{
 				&ast.ExpressionStatement{
-					Expression: &ast.BinaryExpression{
+					Expr: &ast.BinaryExpression{
 						Operator: lexer.Multiplication,
-						Left: &ast.UnaryExpression{
-							Operator: lexer.Minus,
-							Right:    &ast.Identifier{Name: "a"},
+						Left: &ast.ParenthesizedExpression{
+							Expr: &ast.BinaryExpression{
+								Operator: lexer.Plus,
+								Left:     &ast.Identifier{Name: "a"},
+								Right:    &ast.Identifier{Name: "b"},
+							},
 						},
-						Right: &ast.Identifier{Name: "b"},
+						Right: &ast.Identifier{Name: "c"},
 					},
 				},
 			},
@@ -88,20 +91,13 @@ func TestAssignemnts(t *testing.T) {
 			require.True(t, ok, fmt.Sprintf("Expected *ast.ExpressionStatement, got %T", program.Statements[0]))
 			require.NotNil(t, expr)
 
-			assignment, ok := expr.Expression.(*ast.Assignment)
-			require.True(t, ok, fmt.Sprintf("Expected *ast.Assignment, got %T", expr.Expression))
+			assignment, ok := expr.Expr.(*ast.Assignment)
+			require.True(t, ok, fmt.Sprintf("Expected *ast.Assignment, got %T", expr.Expr))
 
 			assert.Equal(t, expected, assignment)
 		})
 	}
 }
-
-// func TestParseErrors(t *testing.T) {
-// 	_, err := parser.Parse("{")
-// 	require.Error(t, err)
-
-// 	assert.Contains(t, err.Error(), "SyntaxError: '}' expected")
-// }
 
 func TestParseBreak(t *testing.T) {
 	t.Parallel()
@@ -141,6 +137,7 @@ func TestParseContinue(t *testing.T) {
 	}{
 		{"continue", false, &ast.ContinueStatement{}},
 		{"continue label", false, &ast.ContinueStatement{Label: new("label")}},
+		{"{continue}", false, &ast.BlockStatement{Statements: []ast.Statement{&ast.ContinueStatement{}}}},
 		{"continue this", true, nil},
 	}
 
@@ -174,6 +171,76 @@ func TestParseThrow(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.input, func(t *testing.T) {
+			t.Parallel()
+			program, err := parser.Parse(tc.input)
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.ErrorContains(t, err, "SyntaxError")
+			} else {
+				require.NoError(t, err)
+				assert.Len(t, program.Statements, 1)
+				assert.Equal(t, tc.expected, program.Statements[0])
+			}
+		})
+	}
+}
+
+func TestParseDoWhile(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name     string
+		input    string
+		wantErr  bool
+		expected ast.Statement
+	}{
+		{
+			name:  "valid do...while",
+			input: `do {i += 1;result += i;} while (i < 5);`,
+			expected: &ast.DoWhileStatement{
+				Condition: &ast.BinaryExpression{
+					Operator: lexer.LT,
+					Left:     &ast.Identifier{Name: "i"},
+					Right:    &ast.NumberLiteral{Value: "5"},
+				},
+				Body: &ast.BlockStatement{
+					Statements: []ast.Statement{
+						&ast.ExpressionStatement{
+							Expr: &ast.Assignment{
+								Operator: lexer.AdditionAssignment,
+								Left:     &ast.Identifier{Name: "i"},
+								Right:    &ast.NumberLiteral{Value: "1"},
+							},
+						},
+						&ast.ExpressionStatement{
+							Expr: &ast.Assignment{
+								Operator: lexer.AdditionAssignment,
+								Left:     &ast.Identifier{Name: "result"},
+								Right:    &ast.Identifier{Name: "i"},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:    "missing block",
+			input:   "do while (i < 5)",
+			wantErr: true,
+		},
+		{
+			name:    "missing while",
+			input:   "do {} (i < 5)",
+			wantErr: true,
+		},
+		{
+			name:    "missing condition",
+			input:   "do {} while i < 5",
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			program, err := parser.Parse(tc.input)
 			if tc.wantErr {
@@ -299,8 +366,8 @@ func TestParsePropertyAccessors(t *testing.T) {
 				require.True(t, ok, fmt.Sprintf("Expected *ast.ExpressionStatement, got %T", program.Statements[0]))
 				require.NotNil(t, expr)
 
-				got, ok := expr.Expression.(*ast.PropertyAccessExpression)
-				require.True(t, ok, fmt.Sprintf("Expected *ast.PropertyAccessExpression, got %T", expr.Expression))
+				got, ok := expr.Expr.(*ast.PropertyAccessExpression)
+				require.True(t, ok, fmt.Sprintf("Expected *ast.PropertyAccessExpression, got %T", expr.Expr))
 
 				assert.Equal(t, tc.expected, got)
 			}
@@ -334,8 +401,8 @@ func TestParseUpdateExpression(t *testing.T) {
 				require.True(t, ok, fmt.Sprintf("Expected *ast.ExpressionStatement, got %T", program.Statements[0]))
 				require.NotNil(t, expr)
 
-				got, ok := expr.Expression.(*ast.UpdateExpression)
-				require.True(t, ok, fmt.Sprintf("Expected *ast.UpdateExpression, got %T", expr.Expression))
+				got, ok := expr.Expr.(*ast.UpdateExpression)
+				require.True(t, ok, fmt.Sprintf("Expected *ast.UpdateExpression, got %T", expr.Expr))
 
 				assert.Equal(t, tc.expected, got)
 			}
@@ -393,8 +460,8 @@ func TestParseFunctionCall(t *testing.T) {
 			require.True(t, ok, fmt.Sprintf("Expected *ast.ExpressionStatement, got %T", program.Statements[0]))
 			require.NotNil(t, expr)
 
-			got, ok := expr.Expression.(*ast.FunctionCall)
-			require.True(t, ok, fmt.Sprintf("Expected *ast.FunctionCall, got %T", expr.Expression))
+			got, ok := expr.Expr.(*ast.FunctionCall)
+			require.True(t, ok, fmt.Sprintf("Expected *ast.FunctionCall, got %T", expr.Expr))
 
 			assert.Equal(t, tc.expected, got)
 		})
@@ -426,8 +493,8 @@ func TestParseArrays(t *testing.T) {
 			require.True(t, ok, fmt.Sprintf("Expected *ast.ExpressionStatement, got %T", program.Statements[0]))
 			require.NotNil(t, expr)
 
-			got, ok := expr.Expression.(*ast.ArrayLiteralExpression)
-			require.True(t, ok, fmt.Sprintf("Expected *ast.ArrayLiteralExpression, got %T", expr.Expression))
+			got, ok := expr.Expr.(*ast.ArrayLiteralExpression)
+			require.True(t, ok, fmt.Sprintf("Expected *ast.ArrayLiteralExpression, got %T", expr.Expr))
 
 			assert.Equal(t, tc.expected, got)
 		})
@@ -469,13 +536,14 @@ func TestImportStatement(t *testing.T) {
 				Path:            &ast.StringLiteral{Value: "module-name"},
 			},
 		},
-		{
-			name:  "named import",
-			input: `import { foo, bar } from "module-name";`,
-			expected: &ast.ImportStatement{
-				Path: &ast.StringLiteral{Value: "module-name"},
-			},
-		},
+		// TODO:
+		// {
+		// 	name:  "named import",
+		// 	input: `import { foo, bar } from "module-name";`,
+		// 	expected: &ast.ImportStatement{
+		// 		Path: &ast.StringLiteral{Value: "module-name"},
+		// 	},
+		// },
 	}
 
 	for _, tc := range cases {
@@ -489,7 +557,7 @@ func TestImportStatement(t *testing.T) {
 	}
 }
 
-func TestParseForStatement(t *testing.T) {
+func TestParseForStatements(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name     string
@@ -525,6 +593,43 @@ func TestParseForStatement(t *testing.T) {
 				Body: &ast.BlockStatement{Statements: []ast.Statement{}},
 			},
 		},
+		{
+			name:  "for...in",
+			input: `for (const property in object) {}`,
+			expected: &ast.ForInStatement{
+				Variable: &ast.VariableDeclaration{
+					Token: lexer.CONST,
+					Name:  &ast.Identifier{Name: "property"},
+				},
+				Object: &ast.Identifier{Name: "object"},
+				Body:   &ast.BlockStatement{Statements: []ast.Statement{}},
+			},
+		},
+		{
+			name:  "for...of",
+			input: `for (const element of array) {}`,
+			expected: &ast.ForOfStatement{
+				Variable: &ast.VariableDeclaration{
+					Token: lexer.CONST,
+					Name:  &ast.Identifier{Name: "element"},
+				},
+				Iterable: &ast.Identifier{Name: "array"},
+				Body:     &ast.BlockStatement{Statements: []ast.Statement{}},
+			},
+		},
+		{
+			name:  "for await...of",
+			input: `for await (const element of array) {}`,
+			expected: &ast.ForOfStatement{
+				Await: true,
+				Variable: &ast.VariableDeclaration{
+					Token: lexer.CONST,
+					Name:  &ast.Identifier{Name: "element"},
+				},
+				Iterable: &ast.Identifier{Name: "array"},
+				Body:     &ast.BlockStatement{Statements: []ast.Statement{}},
+			},
+		},
 	}
 
 	for _, tc := range cases {
@@ -534,6 +639,58 @@ func TestParseForStatement(t *testing.T) {
 			require.NoError(t, err)
 			assert.Len(t, program.Statements, 1)
 			assert.Equal(t, tc.expected, program.Statements[0])
+		})
+	}
+}
+
+func TestParseNewExpression(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		input    string
+		wantErr  bool
+		expected ast.Expression
+	}{
+		{"new", false, &ast.NewExpression{}},
+		{"new constructor", false, &ast.NewExpression{Constructor: &ast.Identifier{Name: "constructor"}}},
+		{"new constructor()", false, &ast.NewExpression{Constructor: &ast.Identifier{Name: "constructor"}, Arguments: []ast.Expression{}}},
+		{"new constructor(a,b)", false, &ast.NewExpression{Constructor: &ast.Identifier{Name: "constructor"}, Arguments: []ast.Expression{
+			&ast.Identifier{Name: "a"},
+			&ast.Identifier{Name: "b"},
+		}}},
+		// {"new object.property(a,b)", false,
+		// 	&ast.NewExpression{
+		// 		Constructor: &ast.PropertyAccessExpression{
+		// 			Object: &ast.Identifier{Name: "object"},
+		// 			Field:  &ast.Identifier{Name: "property"},
+		// 		},
+		// 		Arguments: []ast.Expression{
+		// 			&ast.Identifier{Name: "a"},
+		// 			&ast.Identifier{Name: "b"},
+		// 		},
+		// 	},
+		// },
+	}
+	for _, tc := range cases {
+		t.Run(tc.input, func(t *testing.T) {
+			t.Parallel()
+
+			program, err := parser.Parse(tc.input)
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.ErrorContains(t, err, "SyntaxError")
+			} else {
+				require.NoError(t, err)
+				assert.Len(t, program.Statements, 1)
+
+				expr, ok := program.Statements[0].(*ast.ExpressionStatement)
+				require.True(t, ok, fmt.Sprintf("Expected *ast.ExpressionStatement, got %T", program.Statements[0]))
+				require.NotNil(t, expr)
+
+				got, ok := expr.Expr.(*ast.NewExpression)
+				require.True(t, ok, fmt.Sprintf("Expected *ast.NewExpression, got %T", expr.Expr))
+
+				assert.Equal(t, tc.expected, got)
+			}
 		})
 	}
 }

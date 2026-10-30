@@ -23,6 +23,12 @@ func (p *Parser) precedence() Precedence {
 	return Lowest
 }
 
+func (p *Parser) isSpecialKeyword(keyword string) bool {
+	return p.lexer.Token == lexer.Identifier && p.lexer.Literal == keyword
+}
+
+// #region Statements
+
 func (p *Parser) parseStatement() ast.Statement {
 	switch p.lexer.Token {
 	case lexer.LBrace:
@@ -45,20 +51,7 @@ func (p *Parser) parseStatement() ast.Statement {
 		label := p.parseLabel()
 		return &ast.ContinueStatement{Label: label}
 	case lexer.DO:
-		p.lexer.Next()
-		blockStmt := p.parseStatement()
-		block, ok := blockStmt.(*ast.BlockStatement)
-		if !ok {
-			panic(lexer.LexerPanic{Msg: "do body must be a block statement"})
-		}
-		p.lexer.Expect(lexer.WHILE)
-		p.lexer.Expect(lexer.LParen)
-		cond := p.parseExpression(Lowest)
-		p.lexer.Expect(lexer.RParen)
-		return &ast.DoWhileStatement{
-			Condition: cond,
-			Body:      block,
-		}
+		return p.parseDoWhileStatement()
 	case lexer.DEBUGGER:
 		p.lexer.Next()
 		return &ast.DebuggerStatement{}
@@ -106,7 +99,7 @@ func (p *Parser) parseStatement() ast.Statement {
 		}
 		if p.lexer.Token == lexer.Multiplication {
 			p.lexer.Next()
-			if p.lexer.Token != lexer.Identifier && p.lexer.Literal != "as" {
+			if p.isSpecialKeyword("as") {
 				panic(lexer.LexerPanic{Msg: `SyntaxError: Unexpected token, expected "as"`})
 			}
 			p.lexer.Next()
@@ -116,7 +109,7 @@ func (p *Parser) parseStatement() ast.Statement {
 		}
 		if dflt != nil || namespace != nil {
 			// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#identifiers_with_special_meanings
-			if p.lexer.Token != lexer.Identifier && p.lexer.Literal != "from" {
+			if p.isSpecialKeyword("from") {
 				panic(lexer.LexerPanic{Msg: `SyntaxError: Unexpected token, expected "from"`})
 			}
 			p.lexer.Next()
@@ -162,7 +155,24 @@ func (p *Parser) parseStatement() ast.Statement {
 		if expr == nil {
 			panic(lexer.LexerPanic{Msg: "SyntaxError: expected expression"})
 		}
-		return &ast.ExpressionStatement{Expression: expr}
+		return &ast.ExpressionStatement{Expr: expr}
+	}
+}
+
+func (p *Parser) parseDoWhileStatement() ast.Statement {
+	p.lexer.Next()
+	blockStmt := p.parseStatement()
+	block, ok := blockStmt.(*ast.BlockStatement)
+	if !ok {
+		panic(lexer.LexerPanic{Msg: "do body must be a block statement"})
+	}
+	p.lexer.Expect(lexer.WHILE)
+	p.lexer.Expect(lexer.LParen)
+	cond := p.parseExpression(Lowest)
+	p.lexer.Expect(lexer.RParen)
+	return &ast.DoWhileStatement{
+		Condition: cond,
+		Body:      block,
 	}
 }
 
@@ -207,12 +217,19 @@ func (p *Parser) parseTryCatchStatement() ast.Statement {
 
 func (p *Parser) parseForStatement() ast.Statement {
 	p.lexer.Next() // consume "for"
+	isAwait := p.isSpecialKeyword("await")
+	if isAwait {
+		p.lexer.Next()
+	}
 	p.lexer.Expect(lexer.LParen)
 	var left ast.Statement
 	if p.lexer.Token != lexer.Semi {
 		left = p.parseStatement()
 	}
-	p.lexer.Expect(lexer.Semi)
+
+	if isAwait && !p.isSpecialKeyword("of") {
+		panic(lexer.LexerPanic{Msg: "Unexpected token"})
+	}
 
 	if p.lexer.Token == lexer.IN {
 		if left == nil {
@@ -225,6 +242,18 @@ func (p *Parser) parseForStatement() ast.Statement {
 		return &ast.ForInStatement{Variable: left, Object: right, Body: body}
 	}
 
+	if p.isSpecialKeyword("of") {
+		if left == nil {
+			panic(lexer.LexerPanic{Msg: "Expression expected"})
+		}
+		p.lexer.Next()
+		right := p.parseExpression(Lowest)
+		p.lexer.Expect(lexer.RParen)
+		body := p.parseStatement()
+		return &ast.ForOfStatement{Await: isAwait, Variable: left, Iterable: right, Body: body}
+	}
+
+	p.lexer.Expect(lexer.Semi)
 	var cond ast.Expression
 	if p.lexer.Token == lexer.Semi {
 		p.lexer.Next()
@@ -288,6 +317,8 @@ func (p *Parser) parseFunction(isAsync bool) ast.Statement {
 	}
 }
 
+// #region Expressions
+
 func (p *Parser) parseExpression(precedence Precedence) ast.Expression {
 	expr := p.parsePrefix()
 
@@ -345,10 +376,27 @@ func (p *Parser) parsePrefix() ast.Expression {
 			elements = append(elements, p.parseExpression(Comma))
 			if p.lexer.Token == lexer.Comma {
 				p.lexer.Next()
+			} else {
+				break
 			}
 		}
-		p.lexer.Next()
+		p.lexer.Expect(lexer.RBracket)
 		return &ast.ArrayLiteralExpression{Elements: elements}
+	case lexer.LBrace:
+		p.lexer.Next()
+		for p.lexer.Token != lexer.RBrace {
+			if p.lexer.Token == lexer.EOF || p.lexer.Token == lexer.Semi {
+				panic(lexer.LexerPanic{Msg: "SyntaxError: '}' expected."})
+			}
+			// TODO: handle key value pairs??
+			if p.lexer.Token == lexer.Comma {
+				p.lexer.Next()
+			} else {
+				break
+			}
+		}
+		p.lexer.Expect(lexer.RBrace)
+		return &ast.ObjectLiteralExpression{}
 	case lexer.Increment, lexer.Decrement:
 		op := p.lexer.Token
 		p.lexer.Next()
@@ -359,12 +407,22 @@ func (p *Parser) parsePrefix() ast.Expression {
 		default:
 			panic(lexer.LexerPanic{Msg: "SyntaxError: Invalid left-hand side in prefix operation."})
 		}
+	case lexer.NEW:
+		p.lexer.Next()
+		constructor := p.parseExpression(PNew)
+		// hasArgs := p.lexer.Token == lexer.LParen
+		var args []ast.Expression
+		if p.lexer.Token == lexer.LParen {
+			args = p.parseArguments()
+		}
+		return &ast.NewExpression{Constructor: constructor, Arguments: args}
 	case lexer.LParen:
 		p.lexer.Next()
-		// TODO: group???
-		return nil
+		expr := p.parseExpression(Comma)
+		p.lexer.Expect(lexer.RParen)
+		return &ast.ParenthesizedExpression{Expr: expr}
 	default:
-		p.lexer.Next()
+		// p.lexer.Next()
 		// TODO: check?
 		return nil
 	}
@@ -388,7 +446,6 @@ func (p *Parser) parseInfix(left ast.Expression) ast.Expression {
 			Left:     left,
 			Right:    p.parseExpression(prec - 1),
 		}
-
 	case
 		// arithmetic
 		lexer.Exponentiation, lexer.Multiplication, lexer.Division,
@@ -445,20 +502,7 @@ func (p *Parser) parseInfix(left ast.Expression) ast.Expression {
 			panic(lexer.LexerPanic{Msg: "SyntaxError: Invalid left-hand side in postfix operation."})
 		}
 	case lexer.LParen:
-		p.lexer.Next()
-		args := make([]ast.Expression, 0)
-		for p.lexer.Token != lexer.RParen {
-			if p.lexer.Token == lexer.EOF || p.lexer.Token == lexer.Semi {
-				panic(lexer.LexerPanic{Msg: "SyntaxError: Unexpected token"})
-			}
-			args = append(args, p.parseExpression(Comma))
-			if p.lexer.Token == lexer.Comma {
-				// TODO: require comma?
-				p.lexer.Next()
-			}
-		}
-		p.lexer.Next()
-		return &ast.FunctionCall{Fn: left, Args: args}
+		return &ast.FunctionCall{Fn: left, Args: p.parseArguments()}
 	default:
 		return nil
 	}
@@ -472,6 +516,25 @@ func (p *Parser) parseLabel() *string {
 	p.lexer.Expect(lexer.Identifier)
 
 	return &name
+}
+
+// parseArguments parses expressions wrapped in () separated by ","
+func (p *Parser) parseArguments() []ast.Expression {
+	p.lexer.Next() // consume '('
+	args := make([]ast.Expression, 0)
+	for p.lexer.Token != lexer.RParen {
+		if p.lexer.Token == lexer.EOF {
+			panic(lexer.LexerPanic{Msg: "SyntaxError: ')' expected"})
+		}
+		args = append(args, p.parseExpression(Comma))
+		if p.lexer.Token == lexer.Comma {
+			p.lexer.Next()
+		} else {
+			break
+		}
+	}
+	p.lexer.Expect(lexer.RParen)
+	return args
 }
 
 func Parse(input string) (program *ast.Program, err error) {
