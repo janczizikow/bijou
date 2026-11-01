@@ -129,7 +129,6 @@ func (p *Parser) parseStatement() ast.Statement {
 	case lexer.FOR:
 		return p.parseForStatement()
 	case lexer.FUNCTION:
-		p.lexer.Next()
 		return p.parseFunction(false)
 	case lexer.Semi:
 		p.lexer.Next()
@@ -200,6 +199,7 @@ func (p *Parser) parseTryCatchStatement() ast.Statement {
 		catch = &ast.Catch{}
 		p.lexer.Next()
 		if p.lexer.Token == lexer.LParen {
+			p.lexer.Next()
 			param := p.parseExpression(Lowest)
 			catch.Parameter = &param
 			p.lexer.Expect(lexer.RParen)
@@ -311,6 +311,7 @@ func (p *Parser) parseForStatement() ast.Statement {
 }
 
 func (p *Parser) parseFunction(isAsync bool) ast.Statement {
+	p.lexer.Next()
 	isGenerator := false
 	if p.lexer.Token == lexer.Multiplication {
 		isGenerator = true

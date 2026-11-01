@@ -412,6 +412,134 @@ func TestParseLabeledStatement(t *testing.T) {
 	}
 }
 
+func TestParseTryCatch(t *testing.T) {
+	t.Parallel()
+	expr := func(e ast.Expression) *ast.Expression { return &e }
+	cases := []struct {
+		name     string
+		input    string
+		wantErr  bool
+		expected ast.Statement
+	}{
+		{
+			name:  "try...catch",
+			input: `try { a; } catch (e) { b; }`,
+			expected: &ast.TryCatchStatement{
+				Block: ast.BlockStatement{Statements: []ast.Statement{
+					&ast.ExpressionStatement{Expr: &ast.Identifier{Name: "a"}},
+				}},
+				Catch: &ast.Catch{
+					Parameter: expr(&ast.Identifier{Name: "e"}),
+					Block: ast.BlockStatement{Statements: []ast.Statement{
+						&ast.ExpressionStatement{Expr: &ast.Identifier{Name: "b"}},
+					}},
+				},
+			},
+		},
+		{
+			name:  "try...catch without binding",
+			input: `try {} catch {}`,
+			expected: &ast.TryCatchStatement{
+				Block: ast.BlockStatement{Statements: []ast.Statement{}},
+				Catch: &ast.Catch{Block: ast.BlockStatement{Statements: []ast.Statement{}}},
+			},
+		},
+		{
+			name:  "try...finally",
+			input: `try {} finally { a; }`,
+			expected: &ast.TryCatchStatement{
+				Block: ast.BlockStatement{Statements: []ast.Statement{}},
+				Finally: &ast.BlockStatement{Statements: []ast.Statement{
+					&ast.ExpressionStatement{Expr: &ast.Identifier{Name: "a"}},
+				}},
+			},
+		},
+		{
+			name:  "try...catch...finally",
+			input: `try {} catch (e) {} finally {}`,
+			expected: &ast.TryCatchStatement{
+				Block: ast.BlockStatement{Statements: []ast.Statement{}},
+				Catch: &ast.Catch{
+					Parameter: expr(&ast.Identifier{Name: "e"}),
+					Block:     ast.BlockStatement{Statements: []ast.Statement{}},
+				},
+				Finally: &ast.BlockStatement{Statements: []ast.Statement{}},
+			},
+		},
+		{
+			name:  "throw inside try",
+			input: `try { throw err } catch (e) {}`,
+			expected: &ast.TryCatchStatement{
+				Block: ast.BlockStatement{Statements: []ast.Statement{
+					&ast.ThrowStatement{Argument: &ast.Identifier{Name: "err"}},
+				}},
+				Catch: &ast.Catch{
+					Parameter: expr(&ast.Identifier{Name: "e"}),
+					Block:     ast.BlockStatement{Statements: []ast.Statement{}},
+				},
+			},
+		},
+		{
+			name:  "nested try",
+			input: `try { try {} finally {} } catch {}`,
+			expected: &ast.TryCatchStatement{
+				Block: ast.BlockStatement{Statements: []ast.Statement{
+					&ast.TryCatchStatement{
+						Block:   ast.BlockStatement{Statements: []ast.Statement{}},
+						Finally: &ast.BlockStatement{Statements: []ast.Statement{}},
+					},
+				}},
+				Catch: &ast.Catch{Block: ast.BlockStatement{Statements: []ast.Statement{}}},
+			},
+		},
+		{
+			name:    "missing catch or finally",
+			input:   "try {}",
+			wantErr: true,
+		},
+		{
+			name:    "missing try block",
+			input:   "try catch (e) {}",
+			wantErr: true,
+		},
+		{
+			name:    "missing catch block",
+			input:   "try {} catch (e)",
+			wantErr: true,
+		},
+		{
+			name:    "missing finally block",
+			input:   "try {} finally",
+			wantErr: true,
+		},
+		{
+			name:    "unclosed catch parameter",
+			input:   "try {} catch (e {}",
+			wantErr: true,
+		},
+		{
+			name:    "catch without try",
+			input:   "catch (e) {}",
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			program, err := parser.Parse(tc.input)
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.ErrorContains(t, err, "SyntaxError")
+			} else {
+				require.NoError(t, err)
+				assert.Len(t, program.Statements, 1)
+				assert.Equal(t, tc.expected, program.Statements[0])
+			}
+		})
+	}
+}
+
 func TestParsePropertyAccessors(t *testing.T) {
 	t.Parallel()
 	cases := []struct {

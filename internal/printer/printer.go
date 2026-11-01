@@ -35,6 +35,8 @@ func (p *printer) print(text string) {
 
 func (p *printer) printStatement(stmt ast.Statement) {
 	switch s := stmt.(type) {
+	case *ast.BlockStatement:
+		p.printBlock(s, true)
 	case *ast.BreakStatement:
 		p.printIndent()
 		p.print("break")
@@ -43,6 +45,9 @@ func (p *printer) printStatement(stmt ast.Statement) {
 			p.print(s.Label.Name)
 		}
 		p.printSemicolonAfterStatement()
+	case *ast.ClassDeclaration:
+		// TODO:
+		panic("*ast.ClassDeclaration unimplemented")
 	case *ast.ContinueStatement:
 		p.printIndent()
 		p.print("continue")
@@ -50,6 +55,10 @@ func (p *printer) printStatement(stmt ast.Statement) {
 			p.printSpace()
 			p.print(s.Label.Name)
 		}
+		p.printSemicolonAfterStatement()
+	case *ast.DebuggerStatement:
+		p.printIndent()
+		p.print("debugger")
 		p.printSemicolonAfterStatement()
 	case *ast.DoWhileStatement:
 		p.printIndent()
@@ -63,12 +72,34 @@ func (p *printer) printStatement(stmt ast.Statement) {
 		p.printExpression(s.Condition, parser.Lowest)
 		p.print(")")
 		p.printSemicolonAfterStatement()
-	case *ast.DebuggerStatement:
+	case *ast.EmptyStatement:
+		p.print(";")
+	case *ast.ExportStatement:
+		// TODO:
+		panic("*ast.ExportStatement unimplemented")
+	case *ast.ExpressionStatement:
 		p.printIndent()
-		p.print("debugger")
+		p.printExpression(s.Expr, parser.Lowest)
 		p.printSemicolonAfterStatement()
-	case *ast.BlockStatement:
-		p.printBlock(s, true)
+	case *ast.ForInStatement:
+		p.printForIn(s)
+	case *ast.ForOfStatement:
+		p.printForOf(s)
+	case *ast.ForStatement:
+		p.printFor(s)
+	case *ast.FunctionDeclaration:
+		p.printFunctionDeclaration(s)
+	case *ast.IfStatement:
+		p.printIf(s, true)
+	case *ast.ImportStatement:
+		// TODO:
+		panic("*ast.ImportStatement unimplemented")
+	case *ast.LabeledStatement:
+		p.printIndent()
+		p.print(s.Label.Name)
+		p.print(":")
+		p.printSpace()
+		p.printStatement(s.Body)
 	case *ast.ReturnStatement:
 		p.printIndent()
 		p.print("return")
@@ -77,131 +108,14 @@ func (p *printer) printStatement(stmt ast.Statement) {
 			p.printExpression(s.ReturnValue, parser.Lowest)
 		}
 		p.printSemicolonAfterStatement()
-	case *ast.VariableDeclaration:
-		p.printIndent()
-		p.print(s.Token.String())
-		p.printSpace()
-		p.printExpression(s.Name, parser.Lowest)
-		if s.Value != nil {
-			p.printSpace()
-			p.print("=")
-			p.printSpace()
-			p.printExpression(s.Value, parser.Lowest)
-		}
-		p.printSemicolonAfterStatement()
-	case *ast.IfStatement:
-		p.printIf(s, true)
-	case *ast.ExpressionStatement:
-		p.printIndent()
-		p.printExpression(s.Expr, parser.Lowest)
-		p.printSemicolonAfterStatement()
-	case *ast.ForStatement:
-		p.printIndent()
-		p.print("for")
-		p.printSpace()
-		p.print("(")
-		if s.Init != nil {
-			switch v := s.Init.(type) {
-			case *ast.VariableDeclaration:
-				p.printVariableDeclaration(v)
-			case *ast.ExpressionStatement:
-				p.printExpression(v.Expr, parser.Lowest)
-			default:
-				p.printStatement(s.Init)
-			}
-		}
-		p.print(";")
-		if s.Condition != nil {
-			p.printSpace()
-			p.printExpression(s.Condition, parser.Lowest)
-		}
-		p.print(";")
-		if s.Afterthought != nil {
-			p.printSpace()
-			p.printExpression(s.Afterthought, parser.Lowest)
-		}
-		p.print(")")
-		switch v := s.Body.(type) {
-		case *ast.EmptyStatement:
-			p.printStatement(v)
-			p.printNewLine()
-		case *ast.BlockStatement:
-			p.printSpace()
-			p.printBlock(v, false)
-			p.printSemicolonAfterStatement()
-		default:
-			p.printSpace()
-			p.printStatement(v)
-		}
-	case *ast.ForInStatement:
-		p.printIndent()
-		p.print("for")
-		p.printSpace()
-		p.print("(")
-		switch v := s.Variable.(type) {
-		case *ast.VariableDeclaration:
-			p.printVariableDeclaration(v)
-		case *ast.ExpressionStatement:
-			p.printExpression(v.Expr, parser.Lowest)
-		default:
-			p.printStatement(s.Variable)
-		}
-		p.printSpace()
-		p.print("in")
-		p.printSpace()
-		p.printExpression(s.Object, parser.Lowest)
-		p.print(")")
-		p.printSpace()
-		p.printStatement(s.Body)
-	case *ast.ForOfStatement:
-		p.printIndent()
-		p.print("for")
-		p.printSpace()
-		if s.Await {
-			p.print("await")
-			p.printSpace()
-		}
-		p.print("(")
-		switch v := s.Variable.(type) {
-		case *ast.VariableDeclaration:
-			p.printVariableDeclaration(v)
-		case *ast.ExpressionStatement:
-			p.printExpression(v.Expr, parser.Lowest)
-		default:
-			p.printStatement(s.Variable)
-		}
-		p.printSpace()
-		p.print("of")
-		p.printSpace()
-		p.printExpression(s.Iterable, parser.Lowest)
-		p.print(")")
-		p.printSpace()
-		p.printStatement(s.Body)
-	case *ast.FunctionDeclaration:
-		p.printIndent()
-		if s.IsAsync {
-			p.print("async")
-			p.printSpace()
-		}
-		p.print("function")
-		if s.IsGenerator {
-			p.print("*")
-		}
-		p.printSpace()
-		p.printExpression(s.Name, parser.Lowest)
-		p.print("(")
-		for i, arg := range s.Args {
-			if i > 0 {
-				p.print(",")
-				p.printSpace()
-			}
-			p.printExpression(arg, parser.Lowest)
-		}
-		p.print(")")
-		p.printSpace()
-		p.printBlock(s.Body, true)
 	case *ast.SwitchStatement:
 		p.printSwitch(s)
+	case *ast.ThrowStatement:
+		p.printIndent()
+		p.print("throw")
+		p.printSpace()
+		p.printExpression(s.Argument, parser.Lowest)
+		p.printSemicolonAfterStatement()
 	case *ast.TryCatchStatement:
 		p.printIndent()
 		p.print("try")
@@ -225,21 +139,18 @@ func (p *printer) printStatement(stmt ast.Statement) {
 			p.printSpace()
 			p.printBlock(s.Finally, true)
 		}
-	case *ast.ThrowStatement:
+	case *ast.VariableDeclaration:
 		p.printIndent()
-		p.print("throw")
+		p.print(s.Token.String())
 		p.printSpace()
-		p.printExpression(s.Argument, parser.Lowest)
+		p.printExpression(s.Name, parser.Lowest)
+		if s.Value != nil {
+			p.printSpace()
+			p.print("=")
+			p.printSpace()
+			p.printExpression(s.Value, parser.Lowest)
+		}
 		p.printSemicolonAfterStatement()
-	case *ast.WithStatement:
-		p.printIndent()
-		p.print("with")
-		p.printSpace()
-		p.print("(")
-		p.printExpression(s.Expr, parser.Lowest)
-		p.print(")")
-		p.printSpace()
-		p.printStatement(s.Body)
 	case *ast.WhileStatement:
 		p.printIndent()
 		p.print("while")
@@ -249,17 +160,131 @@ func (p *printer) printStatement(stmt ast.Statement) {
 		p.print(")")
 		p.printSpace()
 		p.printBlock(s.Body, true)
-	case *ast.EmptyStatement:
-		p.print(";")
-	case *ast.LabeledStatement:
+	case *ast.WithStatement:
 		p.printIndent()
-		p.print(s.Label.Name)
-		p.print(":")
+		p.print("with")
+		p.printSpace()
+		p.print("(")
+		p.printExpression(s.Expr, parser.Lowest)
+		p.print(")")
 		p.printSpace()
 		p.printStatement(s.Body)
 	default:
 		panic(fmt.Sprintf("Unexpected statement type: %T", s))
 	}
+}
+
+func (p *printer) printFunctionDeclaration(s *ast.FunctionDeclaration) {
+	p.printIndent()
+	if s.IsAsync {
+		p.print("async")
+		p.printSpace()
+	}
+	p.print("function")
+	if s.IsGenerator {
+		p.print("*")
+	}
+	p.printSpace()
+	p.printExpression(s.Name, parser.Lowest)
+	p.print("(")
+	for i, arg := range s.Args {
+		if i > 0 {
+			p.print(",")
+			p.printSpace()
+		}
+		p.printExpression(arg, parser.Lowest)
+	}
+	p.print(")")
+	p.printSpace()
+	p.printBlock(s.Body, true)
+}
+
+func (p *printer) printFor(s *ast.ForStatement) {
+	p.printIndent()
+	p.print("for")
+	p.printSpace()
+	p.print("(")
+	if s.Init != nil {
+		switch v := s.Init.(type) {
+		case *ast.VariableDeclaration:
+			p.printVariableDeclaration(v)
+		case *ast.ExpressionStatement:
+			p.printExpression(v.Expr, parser.Lowest)
+		default:
+			p.printStatement(s.Init)
+		}
+	}
+	p.print(";")
+	if s.Condition != nil {
+		p.printSpace()
+		p.printExpression(s.Condition, parser.Lowest)
+	}
+	p.print(";")
+	if s.Afterthought != nil {
+		p.printSpace()
+		p.printExpression(s.Afterthought, parser.Lowest)
+	}
+	p.print(")")
+	switch v := s.Body.(type) {
+	case *ast.EmptyStatement:
+		p.printStatement(v)
+		p.printNewLine()
+	case *ast.BlockStatement:
+		p.printSpace()
+		p.printBlock(v, false)
+		p.printSemicolonAfterStatement()
+	default:
+		p.printSpace()
+		p.printStatement(v)
+	}
+}
+
+func (p *printer) printForOf(s *ast.ForOfStatement) {
+	p.printIndent()
+	p.print("for")
+	p.printSpace()
+	if s.Await {
+		p.print("await")
+		p.printSpace()
+	}
+	p.print("(")
+	switch v := s.Variable.(type) {
+	case *ast.VariableDeclaration:
+		p.printVariableDeclaration(v)
+	case *ast.ExpressionStatement:
+		p.printExpression(v.Expr, parser.Lowest)
+	default:
+		p.printStatement(s.Variable)
+	}
+	p.printSpace()
+	p.print("of")
+	p.printSpace()
+	p.printExpression(s.Iterable, parser.Lowest)
+	p.print(")")
+	p.printSpace()
+	p.printStatement(s.Body)
+}
+
+func (p *printer) printForIn(s *ast.ForInStatement) {
+	p.printIndent()
+	p.print("for")
+	p.printSpace()
+	p.print("(")
+	switch v := s.Variable.(type) {
+	case *ast.VariableDeclaration:
+		p.printVariableDeclaration(v)
+	case *ast.ExpressionStatement:
+		p.printExpression(v.Expr, parser.Lowest)
+	default:
+		p.printStatement(s.Variable)
+	}
+	p.printSpace()
+	p.print("in")
+	p.printSpace()
+	p.printExpression(s.Object, parser.Lowest)
+	p.print(")")
+	p.printSpace()
+	p.printStatement(s.Body)
 }
 
 func (p *printer) printExpression(expr ast.Expression, presedence parser.Precedence) {

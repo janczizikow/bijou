@@ -18,28 +18,42 @@ type Program struct {
 
 func (bs *BlockStatement) statement()      {}
 func (bs *BreakStatement) statement()      {}
+func (cs *ClassDeclaration) statement()    {}
 func (cs *ContinueStatement) statement()   {}
 func (ds *DebuggerStatement) statement()   {}
 func (dws *DoWhileStatement) statement()   {}
-func (es *ExpressionStatement) statement() {}
 func (es *EmptyStatement) statement()      {}
-func (is *ImportStatement) statement()     {}
-func (fs *ForStatement) statement()        {}
+func (es *ExportStatement) statement()     {}
+func (es *ExpressionStatement) statement() {}
 func (fis *ForInStatement) statement()     {}
 func (fos *ForOfStatement) statement()     {}
-func (is *IfStatement) statement()         {}
-func (vd *VariableDeclaration) statement() {}
-func (rs *ReturnStatement) statement()     {}
+func (fs *ForStatement) statement()        {}
 func (fd *FunctionDeclaration) statement() {}
+func (is *IfStatement) statement()         {}
+func (is *ImportStatement) statement()     {}
+func (ls *LabeledStatement) statement()    {}
+func (rs *ReturnStatement) statement()     {}
+func (ss *SwitchStatement) statement()     {}
 func (ts *ThrowStatement) statement()      {}
 func (ts *TryCatchStatement) statement()   {}
-func (ws *WithStatement) statement()       {}
+func (vd *VariableDeclaration) statement() {}
 func (ws *WhileStatement) statement()      {}
-func (ss *SwitchStatement) statement()     {}
-func (ls *LabeledStatement) statement()    {}
+func (ws *WithStatement) statement()       {}
 
 type BlockStatement struct {
 	Statements []Statement
+}
+
+type BreakStatement struct {
+	Label *Identifier
+}
+
+type ContinueStatement struct {
+	Label *Identifier
+}
+
+type ClassDeclaration struct {
+	Label *Identifier
 }
 
 type DebuggerStatement struct{}
@@ -49,32 +63,13 @@ type DoWhileStatement struct {
 	Body      *BlockStatement
 }
 
-type ContinueStatement struct {
-	Label *Identifier
-}
+type EmptyStatement struct{}
 
-type BreakStatement struct {
-	Label *Identifier
+type ExportStatement struct {
 }
 
 type ExpressionStatement struct {
 	Expr Expression
-}
-
-type EmptyStatement struct{}
-
-type ImportStatement struct {
-	DefaultImport   *Identifier
-	NamespaceImport *Identifier
-	Path            Expression
-	Assertions      []string
-}
-
-type ForStatement struct {
-	Init         Statement
-	Condition    Expression
-	Afterthought Expression
-	Body         Statement
 }
 
 type ForInStatement struct {
@@ -90,16 +85,11 @@ type ForOfStatement struct {
 	Body     Statement
 }
 
-type IfStatement struct {
-	Condition Expression
-	Then      Statement
-	Else      Statement
-}
-
-type VariableDeclaration struct {
-	Token lexer.Token // the first token of the expression
-	Name  *Identifier
-	Value Expression
+type ForStatement struct {
+	Init         Statement
+	Condition    Expression
+	Afterthought Expression
+	Body         Statement
 }
 
 type FunctionDeclaration struct {
@@ -110,33 +100,26 @@ type FunctionDeclaration struct {
 	IsAsync     bool
 }
 
+type IfStatement struct {
+	Condition Expression
+	Then      Statement
+	Else      Statement
+}
+
+type ImportStatement struct {
+	DefaultImport   *Identifier
+	NamespaceImport *Identifier
+	Path            Expression
+	Assertions      []string
+}
+
+type LabeledStatement struct {
+	Label *Identifier
+	Body  Statement
+}
+
 type ReturnStatement struct {
 	ReturnValue Expression
-}
-
-type ThrowStatement struct {
-	Argument Expression
-}
-
-type TryCatchStatement struct {
-	Block   BlockStatement
-	Catch   *Catch
-	Finally *BlockStatement
-}
-
-type Catch struct {
-	Parameter *Expression
-	Block     BlockStatement
-}
-
-type WithStatement struct {
-	Expr Expression
-	Body Statement
-}
-
-type WhileStatement struct {
-	Condition Expression
-	Body      *BlockStatement
 }
 
 type Case struct {
@@ -149,9 +132,35 @@ type SwitchStatement struct {
 	Cases []Case
 }
 
-type LabeledStatement struct {
-	Label *Identifier
-	Body  Statement
+type ThrowStatement struct {
+	Argument Expression
+}
+
+type Catch struct {
+	Parameter *Expression
+	Block     BlockStatement
+}
+
+type TryCatchStatement struct {
+	Block   BlockStatement
+	Catch   *Catch
+	Finally *BlockStatement
+}
+
+type VariableDeclaration struct {
+	Token lexer.Token // the first token of the expression
+	Name  *Identifier
+	Value Expression
+}
+
+type WhileStatement struct {
+	Condition Expression
+	Body      *BlockStatement
+}
+
+type WithStatement struct {
+	Expr Expression
+	Body Statement
 }
 
 // #region Expressions
