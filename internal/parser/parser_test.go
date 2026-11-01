@@ -842,12 +842,12 @@ func TestImportStatement(t *testing.T) {
 		{
 			name:     "side effect import",
 			input:    `import "module-name";`,
-			expected: &ast.ImportStatement{Specifiers: []*ast.ImportSpecifier{}, Path: &ast.StringLiteral{Value: "module-name"}},
+			expected: &ast.ImportDeclaration{Specifiers: []*ast.ImportSpecifier{}, Path: &ast.StringLiteral{Value: "module-name"}},
 		},
 		{
 			name:  "default import",
 			input: `import defaultExport from "module-name";`,
-			expected: &ast.ImportStatement{
+			expected: &ast.ImportDeclaration{
 				Specifiers: []*ast.ImportSpecifier{
 					{Kind: ast.ImportKindDefault, Local: &ast.Identifier{Name: "defaultExport"}},
 				},
@@ -857,7 +857,7 @@ func TestImportStatement(t *testing.T) {
 		{
 			name:  "namespace import",
 			input: `import * as name from "module-name";`,
-			expected: &ast.ImportStatement{
+			expected: &ast.ImportDeclaration{
 				Specifiers: []*ast.ImportSpecifier{
 					{Kind: ast.ImportKindNamespace, Local: &ast.Identifier{Name: "name"}},
 				},
@@ -867,7 +867,7 @@ func TestImportStatement(t *testing.T) {
 		{
 			name:  "named import",
 			input: `import { foo, bar } from "module-name";`,
-			expected: &ast.ImportStatement{
+			expected: &ast.ImportDeclaration{
 				Specifiers: []*ast.ImportSpecifier{
 					{Imported: &ast.Identifier{Name: "foo"}, Local: &ast.Identifier{Name: "foo"}},
 					{Imported: &ast.Identifier{Name: "bar"}, Local: &ast.Identifier{Name: "bar"}},
@@ -878,7 +878,7 @@ func TestImportStatement(t *testing.T) {
 		{
 			name:  "named imports with alias",
 			input: `import { foo as f, bar as b } from "module-name";`,
-			expected: &ast.ImportStatement{
+			expected: &ast.ImportDeclaration{
 				Specifiers: []*ast.ImportSpecifier{
 					{Imported: &ast.Identifier{Name: "foo"}, Local: &ast.Identifier{Name: "f"}},
 					{Imported: &ast.Identifier{Name: "bar"}, Local: &ast.Identifier{Name: "b"}},
@@ -889,7 +889,7 @@ func TestImportStatement(t *testing.T) {
 		{
 			name:  "named import - single",
 			input: `import { foo } from "module-name";`,
-			expected: &ast.ImportStatement{
+			expected: &ast.ImportDeclaration{
 				Specifiers: []*ast.ImportSpecifier{named("foo", "foo")},
 				Path:       &ast.StringLiteral{Value: "module-name"},
 			},
@@ -897,7 +897,7 @@ func TestImportStatement(t *testing.T) {
 		{
 			name:  "named import - mixed aliased and plain",
 			input: `import { foo, bar as b } from "module-name";`,
-			expected: &ast.ImportStatement{
+			expected: &ast.ImportDeclaration{
 				Specifiers: []*ast.ImportSpecifier{named("foo", "foo"), named("bar", "b")},
 				Path:       &ast.StringLiteral{Value: "module-name"},
 			},
@@ -905,7 +905,7 @@ func TestImportStatement(t *testing.T) {
 		{
 			name:  "named import - trailing comma",
 			input: `import { foo, bar, } from "module-name";`,
-			expected: &ast.ImportStatement{
+			expected: &ast.ImportDeclaration{
 				Specifiers: []*ast.ImportSpecifier{named("foo", "foo"), named("bar", "bar")},
 				Path:       &ast.StringLiteral{Value: "module-name"},
 			},
@@ -913,7 +913,7 @@ func TestImportStatement(t *testing.T) {
 		{
 			name:  "named import - empty braces",
 			input: `import {} from "module-name";`,
-			expected: &ast.ImportStatement{
+			expected: &ast.ImportDeclaration{
 				Specifiers: []*ast.ImportSpecifier{},
 				Path:       &ast.StringLiteral{Value: "module-name"},
 			},
@@ -924,7 +924,7 @@ func TestImportStatement(t *testing.T) {
 				foo,
 				bar as b,
 			} from "module-name";`,
-			expected: &ast.ImportStatement{
+			expected: &ast.ImportDeclaration{
 				Specifiers: []*ast.ImportSpecifier{named("foo", "foo"), named("bar", "b")},
 				Path:       &ast.StringLiteral{Value: "module-name"},
 			},
@@ -932,7 +932,7 @@ func TestImportStatement(t *testing.T) {
 		{
 			name:  "default and named import",
 			input: `import defaultExport, { foo, bar as b } from "module-name";`,
-			expected: &ast.ImportStatement{
+			expected: &ast.ImportDeclaration{
 				Specifiers: []*ast.ImportSpecifier{
 					{Kind: ast.ImportKindDefault, Local: &ast.Identifier{Name: "defaultExport"}},
 					named("foo", "foo"),
@@ -944,7 +944,7 @@ func TestImportStatement(t *testing.T) {
 		{
 			name:  "default and namespace import",
 			input: `import defaultExport, * as name from "module-name";`,
-			expected: &ast.ImportStatement{
+			expected: &ast.ImportDeclaration{
 				Specifiers: []*ast.ImportSpecifier{
 					{Kind: ast.ImportKindDefault, Local: &ast.Identifier{Name: "defaultExport"}},
 					{Kind: ast.ImportKindNamespace, Local: &ast.Identifier{Name: "name"}},
@@ -955,7 +955,7 @@ func TestImportStatement(t *testing.T) {
 		{
 			name:  "single quoted path",
 			input: `import { foo } from 'module-name';`,
-			expected: &ast.ImportStatement{
+			expected: &ast.ImportDeclaration{
 				Specifiers: []*ast.ImportSpecifier{named("foo", "foo")},
 				Path:       &ast.StringLiteral{Value: "module-name"},
 			},
@@ -963,7 +963,7 @@ func TestImportStatement(t *testing.T) {
 		{
 			name:  "no semicolon",
 			input: `import { foo } from "module-name"`,
-			expected: &ast.ImportStatement{
+			expected: &ast.ImportDeclaration{
 				Specifiers: []*ast.ImportSpecifier{named("foo", "foo")},
 				Path:       &ast.StringLiteral{Value: "module-name"},
 			},
@@ -972,7 +972,7 @@ func TestImportStatement(t *testing.T) {
 		{
 			name:  "contextual keyword 'from' as default import",
 			input: `import from from "module-name";`,
-			expected: &ast.ImportStatement{
+			expected: &ast.ImportDeclaration{
 				Specifiers: []*ast.ImportSpecifier{
 					{Kind: ast.ImportKindDefault, Local: &ast.Identifier{Name: "from"}},
 				},
@@ -982,7 +982,7 @@ func TestImportStatement(t *testing.T) {
 		{
 			name:  "contextual keyword 'from' as named import",
 			input: `import { from } from "module-name";`,
-			expected: &ast.ImportStatement{
+			expected: &ast.ImportDeclaration{
 				Specifiers: []*ast.ImportSpecifier{named("from", "from")},
 				Path:       &ast.StringLiteral{Value: "module-name"},
 			},
@@ -990,7 +990,7 @@ func TestImportStatement(t *testing.T) {
 		{
 			name:  "contextual keyword 'as' as named import",
 			input: `import { as } from "module-name";`,
-			expected: &ast.ImportStatement{
+			expected: &ast.ImportDeclaration{
 				Specifiers: []*ast.ImportSpecifier{named("as", "as")},
 				Path:       &ast.StringLiteral{Value: "module-name"},
 			},
@@ -998,7 +998,7 @@ func TestImportStatement(t *testing.T) {
 		{
 			name:  "contextual keyword 'as' aliased to 'as'",
 			input: `import { as as as } from "module-name";`,
-			expected: &ast.ImportStatement{
+			expected: &ast.ImportDeclaration{
 				Specifiers: []*ast.ImportSpecifier{named("as", "as")},
 				Path:       &ast.StringLiteral{Value: "module-name"},
 			},
@@ -1006,7 +1006,7 @@ func TestImportStatement(t *testing.T) {
 		{
 			name:  "named default",
 			input: `import { default as x } from "m"`,
-			expected: &ast.ImportStatement{
+			expected: &ast.ImportDeclaration{
 				Specifiers: []*ast.ImportSpecifier{
 					named("default", "x"),
 				},

@@ -23,14 +23,14 @@ func (cs *ContinueStatement) statement()   {}
 func (ds *DebuggerStatement) statement()   {}
 func (dws *DoWhileStatement) statement()   {}
 func (es *EmptyStatement) statement()      {}
-func (es *ExportStatement) statement()     {}
+func (ed *ExportDeclaration) statement()   {}
 func (es *ExpressionStatement) statement() {}
 func (fis *ForInStatement) statement()     {}
 func (fos *ForOfStatement) statement()     {}
 func (fs *ForStatement) statement()        {}
 func (fd *FunctionDeclaration) statement() {}
 func (is *IfStatement) statement()         {}
-func (is *ImportStatement) statement()     {}
+func (id *ImportDeclaration) statement()   {}
 func (ls *LabeledStatement) statement()    {}
 func (rs *ReturnStatement) statement()     {}
 func (ss *SwitchStatement) statement()     {}
@@ -65,7 +65,7 @@ type DoWhileStatement struct {
 
 type EmptyStatement struct{}
 
-type ExportStatement struct {
+type ExportDeclaration struct {
 }
 
 type ExpressionStatement struct {
@@ -119,7 +119,7 @@ type ImportSpecifier struct {
 	Kind            ImportKind
 }
 
-type ImportStatement struct {
+type ImportDeclaration struct {
 	Path       Expression
 	Specifiers []*ImportSpecifier
 }

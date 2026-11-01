@@ -124,6 +124,47 @@ func TestPrint_PropertyAccess(t *testing.T) {
 	}
 }
 
+func TestPrint_ImportStatment(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+		options  printer.Options
+	}{
+		{
+			name:     "side effect import",
+			input:    `import "module-name"`,
+			expected: "import \"module-name\";\n",
+			options:  printer.Options{Semi: true},
+		},
+		{
+			name:     "default import",
+			input:    `import defaultExport from "module-name"`,
+			expected: "import defaultExport from \"module-name\";\n",
+			options:  printer.Options{Semi: true},
+		},
+
+		{
+			name:     "namespace import with alias",
+			input:    `import * as name from "module-name"`,
+			expected: "import * as name from \"module-name\";\n",
+			options:  printer.Options{Semi: true},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			program, err := parser.Parse(tc.input)
+			require.NoError(t, err)
+
+			bytes := printer.Print(program, tc.options)
+			assert.Equal(t, tc.expected, string(bytes))
+		})
+	}
+}
+
 func TestPrint_Arrays(t *testing.T) {
 	t.Parallel()
 	cases := []struct {

@@ -74,7 +74,7 @@ func (p *printer) printStatement(stmt ast.Statement) {
 		p.printSemicolonAfterStatement()
 	case *ast.EmptyStatement:
 		p.print(";")
-	case *ast.ExportStatement:
+	case *ast.ExportDeclaration:
 		// TODO:
 		panic("*ast.ExportStatement unimplemented")
 	case *ast.ExpressionStatement:
@@ -91,9 +91,32 @@ func (p *printer) printStatement(stmt ast.Statement) {
 		p.printFunctionDeclaration(s)
 	case *ast.IfStatement:
 		p.printIf(s, true)
-	case *ast.ImportStatement:
-		// TODO:
-		panic("*ast.ImportStatement unimplemented")
+	case *ast.ImportDeclaration:
+		p.print("import")
+		p.printSpace()
+		for _, ss := range s.Specifiers {
+			if ss.Kind == ast.ImportKindDefault {
+				p.print(ss.Local.Name)
+				p.printSpace()
+			}
+			if ss.Kind == ast.ImportKindNamespace {
+				p.print("*")
+				p.printSpace()
+				p.print("as")
+				p.printSpace()
+				p.print(ss.Local.Name)
+				p.printSpace()
+			}
+			if ss.Kind == ast.ImportKindNamed {
+				p.print("{")
+			}
+		}
+		if len(s.Specifiers) > 0 {
+			p.print("from")
+			p.printSpace()
+		}
+		p.printExpression(s.Path, parser.Lowest)
+		p.printSemicolonAfterStatement()
 	case *ast.LabeledStatement:
 		p.printIndent()
 		p.print(s.Label.Name)
@@ -127,7 +150,7 @@ func (p *printer) printStatement(stmt ast.Statement) {
 			if s.Catch.Parameter != nil {
 				p.printSpace()
 				p.print("(")
-				p.printExpression(*s.Catch.Parameter, parser.Lowest)
+				p.printExpression(s.Catch.Parameter, parser.Lowest)
 				p.print(")")
 			}
 			p.printSpace()
@@ -140,16 +163,7 @@ func (p *printer) printStatement(stmt ast.Statement) {
 			p.printBlock(s.Finally, true)
 		}
 	case *ast.VariableDeclaration:
-		p.printIndent()
-		p.print(s.Token.String())
-		p.printSpace()
-		p.printExpression(s.Name, parser.Lowest)
-		if s.Value != nil {
-			p.printSpace()
-			p.print("=")
-			p.printSpace()
-			p.printExpression(s.Value, parser.Lowest)
-		}
+		p.printVariableDeclaration(s)
 		p.printSemicolonAfterStatement()
 	case *ast.WhileStatement:
 		p.printIndent()

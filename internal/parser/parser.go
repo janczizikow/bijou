@@ -223,7 +223,7 @@ func (p *Parser) parseImportStatement() ast.Statement {
 	}
 	path = p.parseExpression(Lowest)
 	p.semicolon()
-	return &ast.ImportStatement{Specifiers: specifiers, Path: path}
+	return &ast.ImportDeclaration{Specifiers: specifiers, Path: path}
 }
 
 func (p *Parser) parseDoWhileStatement() ast.Statement {
