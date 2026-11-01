@@ -101,7 +101,7 @@ func (p *Parser) parseStatement() ast.Statement {
 		}
 		if p.lexer.Token == lexer.Multiplication {
 			p.lexer.Next()
-			if p.isSpecialKeyword("as") {
+			if !p.isSpecialKeyword("as") {
 				panic(lexer.LexerPanic{Msg: `SyntaxError: Unexpected token, expected "as"`})
 			}
 			p.lexer.Next()
@@ -111,7 +111,7 @@ func (p *Parser) parseStatement() ast.Statement {
 		}
 		if dflt != nil || namespace != nil {
 			// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#identifiers_with_special_meanings
-			if p.isSpecialKeyword("from") {
+			if !p.isSpecialKeyword("from") {
 				panic(lexer.LexerPanic{Msg: `SyntaxError: Unexpected token, expected "from"`})
 			}
 			p.lexer.Next()
