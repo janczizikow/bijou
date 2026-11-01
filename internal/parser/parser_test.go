@@ -414,7 +414,6 @@ func TestParseLabeledStatement(t *testing.T) {
 
 func TestParseTryCatch(t *testing.T) {
 	t.Parallel()
-	expr := func(e ast.Expression) *ast.Expression { return &e }
 	cases := []struct {
 		name     string
 		input    string
@@ -429,7 +428,7 @@ func TestParseTryCatch(t *testing.T) {
 					&ast.ExpressionStatement{Expr: &ast.Identifier{Name: "a"}},
 				}},
 				Catch: &ast.Catch{
-					Parameter: expr(&ast.Identifier{Name: "e"}),
+					Parameter: &ast.Identifier{Name: "e"},
 					Block: ast.BlockStatement{Statements: []ast.Statement{
 						&ast.ExpressionStatement{Expr: &ast.Identifier{Name: "b"}},
 					}},
@@ -460,7 +459,7 @@ func TestParseTryCatch(t *testing.T) {
 			expected: &ast.TryCatchStatement{
 				Block: ast.BlockStatement{Statements: []ast.Statement{}},
 				Catch: &ast.Catch{
-					Parameter: expr(&ast.Identifier{Name: "e"}),
+					Parameter: &ast.Identifier{Name: "e"},
 					Block:     ast.BlockStatement{Statements: []ast.Statement{}},
 				},
 				Finally: &ast.BlockStatement{Statements: []ast.Statement{}},
@@ -474,7 +473,7 @@ func TestParseTryCatch(t *testing.T) {
 					&ast.ThrowStatement{Argument: &ast.Identifier{Name: "err"}},
 				}},
 				Catch: &ast.Catch{
-					Parameter: expr(&ast.Identifier{Name: "e"}),
+					Parameter: &ast.Identifier{Name: "e"},
 					Block:     ast.BlockStatement{Statements: []ast.Statement{}},
 				},
 			},
@@ -824,51 +823,235 @@ func TestParseArrays(t *testing.T) {
 	})
 }
 
+// named builds a named import specifier: `imported as local`.
+func named(imported, local string) *ast.ImportSpecifier {
+	return &ast.ImportSpecifier{
+		Imported: &ast.Identifier{Name: imported},
+		Local:    &ast.Identifier{Name: local},
+	}
+}
+
 func TestImportStatement(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name     string
 		input    string
+		wantErr  bool
 		expected ast.Statement
 	}{
 		{
 			name:     "side effect import",
 			input:    `import "module-name";`,
-			expected: &ast.ImportStatement{Path: &ast.StringLiteral{Value: "module-name"}},
+			expected: &ast.ImportStatement{Specifiers: []*ast.ImportSpecifier{}, Path: &ast.StringLiteral{Value: "module-name"}},
 		},
 		{
 			name:  "default import",
 			input: `import defaultExport from "module-name";`,
 			expected: &ast.ImportStatement{
-				DefaultImport: &ast.Identifier{Name: "defaultExport"},
-				Path:          &ast.StringLiteral{Value: "module-name"},
+				Specifiers: []*ast.ImportSpecifier{
+					{Kind: ast.ImportKindDefault, Local: &ast.Identifier{Name: "defaultExport"}},
+				},
+				Path: &ast.StringLiteral{Value: "module-name"},
 			},
 		},
 		{
 			name:  "namespace import",
 			input: `import * as name from "module-name";`,
 			expected: &ast.ImportStatement{
-				NamespaceImport: &ast.Identifier{Name: "name"},
-				Path:            &ast.StringLiteral{Value: "module-name"},
+				Specifiers: []*ast.ImportSpecifier{
+					{Kind: ast.ImportKindNamespace, Local: &ast.Identifier{Name: "name"}},
+				},
+				Path: &ast.StringLiteral{Value: "module-name"},
 			},
 		},
-		// TODO:
-		// {
-		// 	name:  "named import",
-		// 	input: `import { foo, bar } from "module-name";`,
-		// 	expected: &ast.ImportStatement{
-		// 		Path: &ast.StringLiteral{Value: "module-name"},
-		// 	},
-		// },
+		{
+			name:  "named import",
+			input: `import { foo, bar } from "module-name";`,
+			expected: &ast.ImportStatement{
+				Specifiers: []*ast.ImportSpecifier{
+					{Imported: &ast.Identifier{Name: "foo"}, Local: &ast.Identifier{Name: "foo"}},
+					{Imported: &ast.Identifier{Name: "bar"}, Local: &ast.Identifier{Name: "bar"}},
+				},
+				Path: &ast.StringLiteral{Value: "module-name"},
+			},
+		},
+		{
+			name:  "named imports with alias",
+			input: `import { foo as f, bar as b } from "module-name";`,
+			expected: &ast.ImportStatement{
+				Specifiers: []*ast.ImportSpecifier{
+					{Imported: &ast.Identifier{Name: "foo"}, Local: &ast.Identifier{Name: "f"}},
+					{Imported: &ast.Identifier{Name: "bar"}, Local: &ast.Identifier{Name: "b"}},
+				},
+				Path: &ast.StringLiteral{Value: "module-name"},
+			},
+		},
+		{
+			name:  "named import - single",
+			input: `import { foo } from "module-name";`,
+			expected: &ast.ImportStatement{
+				Specifiers: []*ast.ImportSpecifier{named("foo", "foo")},
+				Path:       &ast.StringLiteral{Value: "module-name"},
+			},
+		},
+		{
+			name:  "named import - mixed aliased and plain",
+			input: `import { foo, bar as b } from "module-name";`,
+			expected: &ast.ImportStatement{
+				Specifiers: []*ast.ImportSpecifier{named("foo", "foo"), named("bar", "b")},
+				Path:       &ast.StringLiteral{Value: "module-name"},
+			},
+		},
+		{
+			name:  "named import - trailing comma",
+			input: `import { foo, bar, } from "module-name";`,
+			expected: &ast.ImportStatement{
+				Specifiers: []*ast.ImportSpecifier{named("foo", "foo"), named("bar", "bar")},
+				Path:       &ast.StringLiteral{Value: "module-name"},
+			},
+		},
+		{
+			name:  "named import - empty braces",
+			input: `import {} from "module-name";`,
+			expected: &ast.ImportStatement{
+				Specifiers: []*ast.ImportSpecifier{},
+				Path:       &ast.StringLiteral{Value: "module-name"},
+			},
+		},
+		{
+			name: "named import - multiline",
+			input: `import {
+				foo,
+				bar as b,
+			} from "module-name";`,
+			expected: &ast.ImportStatement{
+				Specifiers: []*ast.ImportSpecifier{named("foo", "foo"), named("bar", "b")},
+				Path:       &ast.StringLiteral{Value: "module-name"},
+			},
+		},
+		{
+			name:  "default and named import",
+			input: `import defaultExport, { foo, bar as b } from "module-name";`,
+			expected: &ast.ImportStatement{
+				Specifiers: []*ast.ImportSpecifier{
+					{Kind: ast.ImportKindDefault, Local: &ast.Identifier{Name: "defaultExport"}},
+					named("foo", "foo"),
+					named("bar", "b"),
+				},
+				Path: &ast.StringLiteral{Value: "module-name"},
+			},
+		},
+		{
+			name:  "default and namespace import",
+			input: `import defaultExport, * as name from "module-name";`,
+			expected: &ast.ImportStatement{
+				Specifiers: []*ast.ImportSpecifier{
+					{Kind: ast.ImportKindDefault, Local: &ast.Identifier{Name: "defaultExport"}},
+					{Kind: ast.ImportKindNamespace, Local: &ast.Identifier{Name: "name"}},
+				},
+				Path: &ast.StringLiteral{Value: "module-name"},
+			},
+		},
+		{
+			name:  "single quoted path",
+			input: `import { foo } from 'module-name';`,
+			expected: &ast.ImportStatement{
+				Specifiers: []*ast.ImportSpecifier{named("foo", "foo")},
+				Path:       &ast.StringLiteral{Value: "module-name"},
+			},
+		},
+		{
+			name:  "no semicolon",
+			input: `import { foo } from "module-name"`,
+			expected: &ast.ImportStatement{
+				Specifiers: []*ast.ImportSpecifier{named("foo", "foo")},
+				Path:       &ast.StringLiteral{Value: "module-name"},
+			},
+		},
+		// contextual keywords are valid identifiers
+		{
+			name:  "contextual keyword 'from' as default import",
+			input: `import from from "module-name";`,
+			expected: &ast.ImportStatement{
+				Specifiers: []*ast.ImportSpecifier{
+					{Kind: ast.ImportKindDefault, Local: &ast.Identifier{Name: "from"}},
+				},
+				Path: &ast.StringLiteral{Value: "module-name"},
+			},
+		},
+		{
+			name:  "contextual keyword 'from' as named import",
+			input: `import { from } from "module-name";`,
+			expected: &ast.ImportStatement{
+				Specifiers: []*ast.ImportSpecifier{named("from", "from")},
+				Path:       &ast.StringLiteral{Value: "module-name"},
+			},
+		},
+		{
+			name:  "contextual keyword 'as' as named import",
+			input: `import { as } from "module-name";`,
+			expected: &ast.ImportStatement{
+				Specifiers: []*ast.ImportSpecifier{named("as", "as")},
+				Path:       &ast.StringLiteral{Value: "module-name"},
+			},
+		},
+		{
+			name:  "contextual keyword 'as' aliased to 'as'",
+			input: `import { as as as } from "module-name";`,
+			expected: &ast.ImportStatement{
+				Specifiers: []*ast.ImportSpecifier{named("as", "as")},
+				Path:       &ast.StringLiteral{Value: "module-name"},
+			},
+		},
+		{
+			name:  "named default",
+			input: `import { default as x } from "m"`,
+			expected: &ast.ImportStatement{
+				Specifiers: []*ast.ImportSpecifier{
+					named("default", "x"),
+				},
+				Path: &ast.StringLiteral{Value: "m"},
+			},
+		},
+		// TODO: allow string literals as imported names
+		// {`import { "string name" as x } from "m"`}
+		// `default` is a reserved word, so it can only be imported with an alias
+		{name: "default keyword requires alias", input: `import { default } from "module-name";`, wantErr: true},
+		{name: "default keyword requires alias - among others", input: `import { foo, default, bar } from "module-name";`, wantErr: true},
+		{name: "missing from - named", input: `import { foo } "module-name";`, wantErr: true},
+		{name: "missing from - default", input: `import foo "module-name";`, wantErr: true},
+		{name: "missing from - namespace", input: `import * as ns "module-name";`, wantErr: true},
+		{name: "missing path", input: `import { foo } from;`, wantErr: true},
+		{name: "missing path - EOF", input: `import { foo } from`, wantErr: true},
+		{name: "unclosed braces", input: `import { foo from "module-name";`, wantErr: true},
+		{name: "unclosed braces - EOF", input: `import { foo`, wantErr: true},
+		{name: "unexpected EOF after opening brace", input: `import {`, wantErr: true},
+		{name: "missing alias", input: `import { foo as } from "module-name";`, wantErr: true},
+		{name: "missing comma between names", input: `import { foo bar } from "module-name";`, wantErr: true},
+		{name: "leading comma", input: `import { , foo } from "module-name";`, wantErr: true},
+		{name: "double comma", input: `import { foo,, bar } from "module-name";`, wantErr: true},
+		{name: "namespace without as", input: `import * from "module-name";`, wantErr: true},
+		{name: "namespace without name", input: `import * as from "module-name";`, wantErr: true},
+		{name: "namespace inside braces", input: `import { * as ns } from "module-name";`, wantErr: true},
+		{name: "namespace before default", input: `import * as ns, def from "module-name";`, wantErr: true},
+		{name: "namespace and named", input: `import * as ns, { foo } from "module-name";`, wantErr: true},
+		{name: "default after named", input: `import { foo }, def from "module-name";`, wantErr: true},
+		{name: "trailing comma after default", input: `import def, from "module-name";`, wantErr: true},
+		{name: "alias must be an identifier", input: `import { foo as 1 } from "module-name";`, wantErr: true},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			program, err := parser.Parse(tc.input)
-			require.NoError(t, err)
-			assert.Len(t, program.Statements, 1)
-			assert.Equal(t, tc.expected, program.Statements[0])
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.ErrorContains(t, err, "SyntaxError")
+			} else {
+				require.NoError(t, err)
+				assert.Len(t, program.Statements, 1)
+				assert.Equal(t, tc.expected, program.Statements[0])
+			}
 		})
 	}
 }

@@ -23,6 +23,9 @@ func (p *Parser) precedence() Precedence {
 	return Lowest
 }
 
+// Some identifiers aren't reserved keywords, but have special meaning in some contexts:
+//
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#identifiers_with_special_meanings
 func (p *Parser) isSpecialKeyword(keyword string) bool {
 	return p.lexer.Token == lexer.Identifier && p.lexer.Literal == keyword
 }
@@ -92,33 +95,7 @@ func (p *Parser) parseStatement() ast.Statement {
 	case lexer.SWITCH:
 		return p.parseSwitchStatement()
 	case lexer.IMPORT:
-		p.lexer.Next()
-		var dflt, namespace *ast.Identifier
-		var path ast.Expression
-		if p.lexer.Token == lexer.Identifier {
-			dflt = &ast.Identifier{Name: p.lexer.Literal}
-			p.lexer.Next()
-		}
-		if p.lexer.Token == lexer.Multiplication {
-			p.lexer.Next()
-			if !p.isSpecialKeyword("as") {
-				panic(lexer.LexerPanic{Msg: `SyntaxError: Unexpected token, expected "as"`})
-			}
-			p.lexer.Next()
-			name := p.lexer.Literal
-			p.lexer.Expect(lexer.Identifier)
-			namespace = &ast.Identifier{Name: name}
-		}
-		if dflt != nil || namespace != nil {
-			// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#identifiers_with_special_meanings
-			if !p.isSpecialKeyword("from") {
-				panic(lexer.LexerPanic{Msg: `SyntaxError: Unexpected token, expected "from"`})
-			}
-			p.lexer.Next()
-		}
-		path = p.parseExpression(Lowest)
-		p.semicolon()
-		return &ast.ImportStatement{DefaultImport: dflt, NamespaceImport: namespace, Path: path}
+		return p.parseImportStatement()
 	case lexer.THROW:
 		p.lexer.Next()
 		if p.lexer.Token == lexer.EOF || p.lexer.Token == lexer.Semi {
@@ -169,6 +146,86 @@ func (p *Parser) parseStatement() ast.Statement {
 	}
 }
 
+func (p *Parser) parseImportStatement() ast.Statement {
+	p.lexer.Next()
+	var (
+		dflt, namespace *ast.ImportSpecifier
+		path            ast.Expression
+		sawBraces       bool
+	)
+	specifiers := make([]*ast.ImportSpecifier, 0)
+	if p.lexer.Token == lexer.Identifier {
+		dflt = &ast.ImportSpecifier{
+			Local: &ast.Identifier{Name: p.lexer.Literal},
+			Kind:  ast.ImportKindDefault,
+		}
+		specifiers = append(specifiers, dflt)
+		p.lexer.Next()
+	}
+	if dflt != nil && p.lexer.Token == lexer.Comma {
+		p.lexer.Next()
+		if p.lexer.Token != lexer.Multiplication && p.lexer.Token != lexer.LBrace {
+			panic(lexer.LexerPanic{Msg: "SyntaxError: expected '*' or '{' after default import"})
+		}
+	}
+	if p.lexer.Token == lexer.Multiplication {
+		p.lexer.Next()
+		if !p.isSpecialKeyword("as") {
+			panic(lexer.LexerPanic{Msg: `SyntaxError: Unexpected token, expected "as"`})
+		}
+		p.lexer.Next()
+		name := p.lexer.Literal
+		p.lexer.Expect(lexer.Identifier)
+		namespace = &ast.ImportSpecifier{
+			Kind:  ast.ImportKindNamespace,
+			Local: &ast.Identifier{Name: name},
+		}
+		specifiers = append(specifiers, namespace)
+	}
+	if namespace == nil && p.lexer.Token == lexer.LBrace {
+		sawBraces = true
+		p.lexer.Next()
+		for p.lexer.Token != lexer.RBrace {
+			imported := p.lexer.Literal
+			if p.lexer.Token == lexer.DEFAULT {
+				imported = "default"
+				p.lexer.Next()
+				if !p.isSpecialKeyword("as") {
+					panic(lexer.LexerPanic{Msg: "SyntaxError: cannot import as reserved word"})
+				}
+			} else {
+				p.lexer.Expect(lexer.Identifier)
+			}
+			local := imported
+			if p.isSpecialKeyword("as") {
+				p.lexer.Next()
+				local = p.lexer.Literal
+				p.lexer.Expect(lexer.Identifier)
+			}
+			specifiers = append(specifiers, &ast.ImportSpecifier{
+				Imported: &ast.Identifier{Name: imported},
+				Local:    &ast.Identifier{Name: local},
+			})
+			if p.lexer.Token != lexer.RBrace {
+				p.lexer.Expect(lexer.Comma)
+			}
+		}
+		p.lexer.Expect(lexer.RBrace)
+	}
+	if len(specifiers) != 0 || sawBraces {
+		if !p.isSpecialKeyword("from") {
+			panic(lexer.LexerPanic{Msg: `SyntaxError: Unexpected token, expected "from"`})
+		}
+		p.lexer.Next()
+	}
+	if p.lexer.Token != lexer.STRING_LITERAL {
+		panic(lexer.LexerPanic{Msg: "SyntaxError: Unexpecteed token, expected a string literal"})
+	}
+	path = p.parseExpression(Lowest)
+	p.semicolon()
+	return &ast.ImportStatement{Specifiers: specifiers, Path: path}
+}
+
 func (p *Parser) parseDoWhileStatement() ast.Statement {
 	p.lexer.Next()
 	blockStmt := p.parseStatement()
@@ -200,8 +257,7 @@ func (p *Parser) parseTryCatchStatement() ast.Statement {
 		p.lexer.Next()
 		if p.lexer.Token == lexer.LParen {
 			p.lexer.Next()
-			param := p.parseExpression(Lowest)
-			catch.Parameter = &param
+			catch.Parameter = p.parseExpression(Lowest)
 			p.lexer.Expect(lexer.RParen)
 		}
 		catchBlock := p.parseStatement()

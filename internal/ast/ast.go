@@ -106,11 +106,22 @@ type IfStatement struct {
 	Else      Statement
 }
 
+type ImportKind uint8
+
+const (
+	ImportKindNamed ImportKind = iota
+	ImportKindDefault
+	ImportKindNamespace
+)
+
+type ImportSpecifier struct {
+	Imported, Local *Identifier
+	Kind            ImportKind
+}
+
 type ImportStatement struct {
-	DefaultImport   *Identifier
-	NamespaceImport *Identifier
-	Path            Expression
-	Assertions      []string
+	Path       Expression
+	Specifiers []*ImportSpecifier
 }
 
 type LabeledStatement struct {
@@ -137,7 +148,7 @@ type ThrowStatement struct {
 }
 
 type Catch struct {
-	Parameter *Expression
+	Parameter Expression
 	Block     BlockStatement
 }
 
