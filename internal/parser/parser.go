@@ -155,6 +155,12 @@ func (p *Parser) parseStatement() ast.Statement {
 		}
 		return &ast.WhileStatement{Condition: cond, Body: body}
 	default:
+		if p.lexer.Token == lexer.Identifier && p.lexer.PeekToken() == lexer.Colon {
+			label := p.lexer.Literal
+			p.lexer.Next()
+			p.lexer.Expect(lexer.Colon)
+			return &ast.LabeledStatement{Label: &ast.Identifier{Name: label}, Body: p.parseStatement()}
+		}
 		expr := p.parseExpression(Lowest)
 		if expr == nil {
 			panic(lexer.LexerPanic{Msg: "SyntaxError: expected expression"})
@@ -582,14 +588,14 @@ func (p *Parser) parseInfix(left ast.Expression) ast.Expression {
 	}
 }
 
-func (p *Parser) parseLabel() *string {
+func (p *Parser) parseLabel() *ast.Identifier {
 	if p.lexer.Token == lexer.Semi || p.lexer.Token == lexer.EOF || p.lexer.Token == lexer.RBrace {
 		return nil
 	}
 	name := p.lexer.Literal
 	p.lexer.Expect(lexer.Identifier)
 
-	return &name
+	return &ast.Identifier{Name: name}
 }
 
 // parseArguments parses expressions wrapped in () separated by ","

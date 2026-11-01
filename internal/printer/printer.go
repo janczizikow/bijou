@@ -40,7 +40,7 @@ func (p *printer) printStatement(stmt ast.Statement) {
 		p.print("break")
 		if s.Label != nil {
 			p.printSpace()
-			p.print(*s.Label)
+			p.print(s.Label.Name)
 		}
 		p.printSemicolonAfterStatement()
 	case *ast.ContinueStatement:
@@ -48,7 +48,7 @@ func (p *printer) printStatement(stmt ast.Statement) {
 		p.print("continue")
 		if s.Label != nil {
 			p.printSpace()
-			p.print(*s.Label)
+			p.print(s.Label.Name)
 		}
 		p.printSemicolonAfterStatement()
 	case *ast.DoWhileStatement:
@@ -251,6 +251,12 @@ func (p *printer) printStatement(stmt ast.Statement) {
 		p.printBlock(s.Body, true)
 	case *ast.EmptyStatement:
 		p.print(";")
+	case *ast.LabeledStatement:
+		p.printIndent()
+		p.print(s.Label.Name)
+		p.print(":")
+		p.printSpace()
+		p.printStatement(s.Body)
 	default:
 		panic(fmt.Sprintf("Unexpected statement type: %T", s))
 	}
@@ -453,6 +459,7 @@ func (p *printer) printSwitchCase(s ast.Case) {
 }
 
 func (p *printer) printSwitch(s *ast.SwitchStatement) {
+	p.printIndent()
 	p.print("switch")
 	p.printSpace()
 	p.print("(")

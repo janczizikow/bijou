@@ -393,6 +393,15 @@ func (l *Lexer) Next() {
 	}
 }
 
+// PeekToken returns the token after the current one without consuming anything.
+func (l *Lexer) PeekToken() Token {
+	saved := *l
+	l.Next()
+	t := l.Token
+	*l = saved
+	return t
+}
+
 func (l *Lexer) Expect(t Token) {
 	if l.Token != t {
 		panic(LexerPanic{Msg: fmt.Sprintf("SyntaxError: expected %s, got %s", t.String(), l.Token.String())})

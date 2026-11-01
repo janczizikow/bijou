@@ -36,6 +36,7 @@ func (ts *TryCatchStatement) statement()   {}
 func (ws *WithStatement) statement()       {}
 func (ws *WhileStatement) statement()      {}
 func (ss *SwitchStatement) statement()     {}
+func (ls *LabeledStatement) statement()    {}
 
 type BlockStatement struct {
 	Statements []Statement
@@ -49,11 +50,11 @@ type DoWhileStatement struct {
 }
 
 type ContinueStatement struct {
-	Label *string
+	Label *Identifier
 }
 
 type BreakStatement struct {
-	Label *string
+	Label *Identifier
 }
 
 type ExpressionStatement struct {
@@ -146,6 +147,11 @@ type Case struct {
 type SwitchStatement struct {
 	Test  Expression
 	Cases []Case
+}
+
+type LabeledStatement struct {
+	Label *Identifier
+	Body  Statement
 }
 
 // #region Expressions

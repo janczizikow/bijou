@@ -254,3 +254,57 @@ func TestPrint_SwithStatment(t *testing.T) {
 		})
 	}
 }
+
+func TestPrint_LabeledStatement(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+		options  printer.Options
+	}{
+		{
+			name:     "label",
+			input:    "foo: x;",
+			expected: "foo: x;\n",
+			options:  printer.Options{Semi: true},
+		},
+		{
+			name:     "label without semicolons",
+			input:    "foo: x;",
+			expected: "foo: x\n",
+			options:  printer.Options{Semi: false},
+		},
+		{
+			name:     "nested labels",
+			input:    "foo: bar: x",
+			expected: "foo: bar: x;\n",
+			options:  printer.Options{Semi: true},
+		},
+		{
+			name:     "labeled loop with break and continue",
+			input:    "outer: for (const x of xs) { break outer; continue outer; }",
+			expected: "outer: for (const x of xs) {\n  break outer;\n  continue outer;\n}\n",
+			options:  printer.Options{Semi: true},
+		},
+		// FIXME: idents
+		// {
+		// 	name:     "label inside block",
+		// 	input:    "{ foo: x; }",
+		// 	expected: "{\n  foo: x;\n}\n",
+		// 	options:  printer.Options{Semi: true},
+		// },
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			program, err := parser.Parse(tc.input)
+			require.NoError(t, err)
+
+			bytes := printer.Print(program, tc.options)
+			assert.Equal(t, tc.expected, string(bytes))
+		})
+	}
+}

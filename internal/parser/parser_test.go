@@ -107,7 +107,7 @@ func TestParseBreak(t *testing.T) {
 		expected ast.Statement
 	}{
 		{"break", false, &ast.BreakStatement{}},
-		{"break label", false, &ast.BreakStatement{Label: new("label")}},
+		{"break label", false, &ast.BreakStatement{Label: &ast.Identifier{Name: "label"}}},
 		{"{break}", false, &ast.BlockStatement{Statements: []ast.Statement{&ast.BreakStatement{}}}},
 		{"break this", true, nil},
 	}
@@ -136,7 +136,7 @@ func TestParseContinue(t *testing.T) {
 		expected ast.Statement
 	}{
 		{"continue", false, &ast.ContinueStatement{}},
-		{"continue label", false, &ast.ContinueStatement{Label: new("label")}},
+		{"continue label", false, &ast.ContinueStatement{Label: &ast.Identifier{Name: "label"}}},
 		{"{continue}", false, &ast.BlockStatement{Statements: []ast.Statement{&ast.ContinueStatement{}}}},
 		{"continue this", true, nil},
 	}
@@ -322,6 +322,76 @@ func TestParseDoWhile(t *testing.T) {
 		{
 			name:    "missing condition",
 			input:   "do {} while i < 5",
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			program, err := parser.Parse(tc.input)
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.ErrorContains(t, err, "SyntaxError")
+			} else {
+				require.NoError(t, err)
+				assert.Len(t, program.Statements, 1)
+				assert.Equal(t, tc.expected, program.Statements[0])
+			}
+		})
+	}
+}
+
+func TestParseLabeledStatement(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name     string
+		input    string
+		wantErr  bool
+		expected ast.Statement
+	}{
+		{
+			name:  "label",
+			input: "foo: x;",
+			expected: &ast.LabeledStatement{
+				Label: &ast.Identifier{Name: "foo"},
+				Body:  &ast.ExpressionStatement{Expr: &ast.Identifier{Name: "x"}},
+			},
+		},
+		{
+			name:  "whitespace before colon",
+			input: "foo : x",
+			expected: &ast.LabeledStatement{
+				Label: &ast.Identifier{Name: "foo"},
+				Body:  &ast.ExpressionStatement{Expr: &ast.Identifier{Name: "x"}},
+			},
+		},
+		{
+			name:  "nested labels",
+			input: "foo: bar: x",
+			expected: &ast.LabeledStatement{
+				Label: &ast.Identifier{Name: "foo"},
+				Body: &ast.LabeledStatement{
+					Label: &ast.Identifier{Name: "bar"},
+					Body:  &ast.ExpressionStatement{Expr: &ast.Identifier{Name: "x"}},
+				},
+			},
+		},
+		{
+			name:  "labeled loop with break",
+			input: "outer: for (;;) { break outer; }",
+			expected: &ast.LabeledStatement{
+				Label: &ast.Identifier{Name: "outer"},
+				Body: &ast.ForStatement{
+					Body: &ast.BlockStatement{Statements: []ast.Statement{
+						&ast.BreakStatement{Label: &ast.Identifier{Name: "outer"}},
+					}},
+				},
+			},
+		},
+		{
+			name:    "missing body",
+			input:   "foo:",
 			wantErr: true,
 		},
 	}
