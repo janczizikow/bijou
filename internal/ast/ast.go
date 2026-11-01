@@ -138,9 +138,14 @@ type WhileStatement struct {
 	Body      *BlockStatement
 }
 
+type Case struct {
+	Value Expression
+	Body  []Statement
+}
+
 type SwitchStatement struct {
-	Discriminant Expression
-	Cases        []any
+	Test  Expression
+	Cases []Case
 }
 
 // #region Expressions

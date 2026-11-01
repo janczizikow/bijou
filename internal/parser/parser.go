@@ -27,6 +27,17 @@ func (p *Parser) isSpecialKeyword(keyword string) bool {
 	return p.lexer.Token == lexer.Identifier && p.lexer.Literal == keyword
 }
 
+func (p *Parser) semicolon() {
+	switch p.lexer.Token {
+	case lexer.Semi:
+		p.lexer.Next()
+		// TODO: expect }, EOF or new line???
+		// case lexer.RBrace, lexer.EOF:
+		// default:
+		// 	panic(lexer.LexerPanic{Msg: "SyntaxError: Unexpected token, expected ';'"})
+	}
+}
+
 // #region Statements
 
 func (p *Parser) parseStatement() ast.Statement {
@@ -45,38 +56,27 @@ func (p *Parser) parseStatement() ast.Statement {
 	case lexer.BREAK:
 		p.lexer.Next()
 		label := p.parseLabel()
+		p.semicolon()
 		return &ast.BreakStatement{Label: label}
 	case lexer.CONTINUE:
 		p.lexer.Next()
 		label := p.parseLabel()
+		p.semicolon()
 		return &ast.ContinueStatement{Label: label}
 	case lexer.DO:
 		return p.parseDoWhileStatement()
 	case lexer.DEBUGGER:
 		p.lexer.Next()
+		p.semicolon()
 		return &ast.DebuggerStatement{}
 	case lexer.RETURN:
 		p.lexer.Next()
+		p.semicolon()
 		return &ast.ReturnStatement{ReturnValue: p.parseExpression(Lowest)}
 	case lexer.VAR, lexer.LET, lexer.CONST:
-		kind := p.lexer.Token
-		p.lexer.Next()
-		if p.lexer.Token != lexer.Identifier {
-			// TODO: handle destructuring etc.
-			panic(lexer.LexerPanic{Msg: "SyntaxError: variable declaration requires a name"})
-		}
-		name := &ast.Identifier{Name: p.lexer.Literal}
-		p.lexer.Next()
-		var value ast.Expression
-		if p.lexer.Token == lexer.Assignment {
-			p.lexer.Next() // consume '='
-			value = p.parseExpression(Lowest)
-		}
-		return &ast.VariableDeclaration{
-			Token: kind,
-			Name:  name,
-			Value: value,
-		}
+		node := p.parseVariableDeclaration()
+		p.semicolon()
+		return node
 	case lexer.IF:
 		p.lexer.Next()
 		p.lexer.Expect(lexer.LParen)
@@ -117,12 +117,14 @@ func (p *Parser) parseStatement() ast.Statement {
 			p.lexer.Next()
 		}
 		path = p.parseExpression(Lowest)
+		p.semicolon()
 		return &ast.ImportStatement{DefaultImport: dflt, NamespaceImport: namespace, Path: path}
 	case lexer.THROW:
 		p.lexer.Next()
 		if p.lexer.Token == lexer.EOF || p.lexer.Token == lexer.Semi {
 			panic(lexer.LexerPanic{Msg: "SyntaxError: throw statement requires an argument"})
 		}
+		p.semicolon()
 		return &ast.ThrowStatement{Argument: p.parseExpression(Lowest)}
 	case lexer.FOR:
 		return p.parseForStatement()
@@ -157,6 +159,7 @@ func (p *Parser) parseStatement() ast.Statement {
 		if expr == nil {
 			panic(lexer.LexerPanic{Msg: "SyntaxError: expected expression"})
 		}
+		p.semicolon()
 		return &ast.ExpressionStatement{Expr: expr}
 	}
 }
@@ -172,6 +175,7 @@ func (p *Parser) parseDoWhileStatement() ast.Statement {
 	p.lexer.Expect(lexer.LParen)
 	cond := p.parseExpression(Lowest)
 	p.lexer.Expect(lexer.RParen)
+	p.semicolon()
 	return &ast.DoWhileStatement{
 		Condition: cond,
 		Body:      block,
@@ -217,6 +221,27 @@ func (p *Parser) parseTryCatchStatement() ast.Statement {
 	return &ast.TryCatchStatement{Block: *blockStmt, Catch: catch, Finally: finally}
 }
 
+func (p *Parser) parseVariableDeclaration() ast.Statement {
+	kind := p.lexer.Token
+	p.lexer.Next()
+	if p.lexer.Token != lexer.Identifier {
+		// TODO: handle destructuring etc.
+		panic(lexer.LexerPanic{Msg: "SyntaxError: variable declaration requires a name"})
+	}
+	name := &ast.Identifier{Name: p.lexer.Literal}
+	p.lexer.Next()
+	var value ast.Expression
+	if p.lexer.Token == lexer.Assignment {
+		p.lexer.Next() // consume '='
+		value = p.parseExpression(Lowest)
+	}
+	return &ast.VariableDeclaration{
+		Token: kind,
+		Name:  name,
+		Value: value,
+	}
+}
+
 func (p *Parser) parseForStatement() ast.Statement {
 	p.lexer.Next() // consume "for"
 	isAwait := p.isSpecialKeyword("await")
@@ -226,7 +251,12 @@ func (p *Parser) parseForStatement() ast.Statement {
 	p.lexer.Expect(lexer.LParen)
 	var left ast.Statement
 	if p.lexer.Token != lexer.Semi {
-		left = p.parseStatement()
+		switch p.lexer.Token {
+		case lexer.VAR, lexer.LET, lexer.CONST:
+			left = p.parseVariableDeclaration() // no terminator consumed
+		default:
+			left = &ast.ExpressionStatement{Expr: p.parseExpression(Lowest)}
+		}
 	}
 
 	if isAwait && !p.isSpecialKeyword("of") {
@@ -322,13 +352,37 @@ func (p *Parser) parseFunction(isAsync bool) ast.Statement {
 func (p *Parser) parseSwitchStatement() ast.Statement {
 	p.lexer.Next()
 	p.lexer.Expect(lexer.LParen)
-	expr := p.parseExpression(Lowest)
+	cond := p.parseExpression(Lowest)
 	p.lexer.Expect(lexer.RParen)
 	p.lexer.Expect(lexer.LBrace)
-	// TODO: parse condition
+	cases := make([]ast.Case, 0)
+	for p.lexer.Token != lexer.RBrace {
+		switch p.lexer.Token {
+		case lexer.CASE:
+			p.lexer.Next()
+			expr := p.parseExpression(Lowest)
+			p.lexer.Expect(lexer.Colon)
+			stmts := make([]ast.Statement, 0)
+			for p.lexer.Token != lexer.CASE && p.lexer.Token != lexer.DEFAULT && p.lexer.Token != lexer.RBrace {
+				stmts = append(stmts, p.parseStatement())
+			}
+			cases = append(cases, ast.Case{Value: expr, Body: stmts})
+		case lexer.DEFAULT:
+			p.lexer.Next()
+			p.lexer.Expect(lexer.Colon)
+			stmts := make([]ast.Statement, 0)
+			for p.lexer.Token != lexer.CASE && p.lexer.Token != lexer.DEFAULT && p.lexer.Token != lexer.RBrace {
+				stmts = append(stmts, p.parseStatement())
+			}
+			cases = append(cases, ast.Case{Body: stmts})
+		// case lexer.Semi:
+		// 	p.lexer.Next()
+		case lexer.EOF:
+			panic(lexer.LexerPanic{Msg: "unexpected EOF"})
+		}
+	}
 	p.lexer.Expect(lexer.RBrace)
-
-	return &ast.SwitchStatement{Discriminant: expr}
+	return &ast.SwitchStatement{Test: cond, Cases: cases}
 }
 
 // #region Expressions
@@ -567,11 +621,6 @@ func Parse(input string) (program *ast.Program, err error) {
 	for p.lexer.Token != lexer.EOF {
 		stmt := p.parseStatement()
 		program.Statements = append(program.Statements, stmt)
-
-		// consume semicolon if present
-		if p.lexer.Token == lexer.Semi {
-			p.lexer.Next()
-		}
 	}
 
 	return

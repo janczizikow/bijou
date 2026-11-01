@@ -101,7 +101,14 @@ func (p *printer) printStatement(stmt ast.Statement) {
 		p.printSpace()
 		p.print("(")
 		if s.Init != nil {
-			p.printStatement(s.Init)
+			switch v := s.Init.(type) {
+			case *ast.VariableDeclaration:
+				p.printVariableDeclaration(v)
+			case *ast.ExpressionStatement:
+				p.printExpression(v.Expr, parser.Lowest)
+			default:
+				p.printStatement(s.Init)
+			}
 		}
 		p.print(";")
 		if s.Condition != nil {
@@ -110,18 +117,21 @@ func (p *printer) printStatement(stmt ast.Statement) {
 		}
 		p.print(";")
 		if s.Afterthought != nil {
+			p.printSpace()
 			p.printExpression(s.Afterthought, parser.Lowest)
 		}
 		p.print(")")
-		_, isEmptyBody := s.Body.(*ast.EmptyStatement)
-		if !isEmptyBody {
-			p.printSpace()
-		}
-		p.printStatement(s.Body)
-		if isEmptyBody {
+		switch v := s.Body.(type) {
+		case *ast.EmptyStatement:
+			p.printStatement(v)
 			p.printNewLine()
-		} else {
+		case *ast.BlockStatement:
+			p.printSpace()
+			p.printBlock(v, false)
 			p.printSemicolonAfterStatement()
+		default:
+			p.printSpace()
+			p.printStatement(v)
 		}
 	case *ast.ForInStatement:
 		p.printIndent()
@@ -174,6 +184,8 @@ func (p *printer) printStatement(stmt ast.Statement) {
 		p.print(")")
 		p.printSpace()
 		p.printBlock(s.Body, true)
+	case *ast.SwitchStatement:
+		p.printSwitch(s)
 	case *ast.TryCatchStatement:
 		p.printIndent()
 		p.print("try")
@@ -323,6 +335,19 @@ func (p *printer) printExpression(expr ast.Expression, presedence parser.Precede
 	}
 }
 
+func (p *printer) printVariableDeclaration(s *ast.VariableDeclaration) {
+	p.printIndent()
+	p.print(s.Token.String())
+	p.printSpace()
+	p.printExpression(s.Name, parser.Lowest)
+	if s.Value != nil {
+		p.printSpace()
+		p.print("=")
+		p.printSpace()
+		p.printExpression(s.Value, parser.Lowest)
+	}
+}
+
 func (p *printer) printBlock(s *ast.BlockStatement, trailingNewline bool) {
 	p.print("{")
 	p.printNewLine()
@@ -372,6 +397,43 @@ func (p *printer) printIf(s *ast.IfStatement, indent bool) {
 			p.printStatement(s.Else)
 		}
 	}
+}
+
+func (p *printer) printSwitchCase(s ast.Case) {
+	p.printIndent()
+	if s.Value != nil {
+		p.print("case")
+		p.printSpace()
+		p.printExpression(s.Value, parser.Lowest)
+		p.print(":")
+		p.printNewLine()
+	} else {
+		p.print("default:")
+		p.printNewLine()
+	}
+	p.indent++
+	for _, body := range s.Body {
+		p.printStatement(body)
+	}
+	p.indent--
+}
+
+func (p *printer) printSwitch(s *ast.SwitchStatement) {
+	p.print("switch")
+	p.printSpace()
+	p.print("(")
+	p.printExpression(s.Test, parser.Lowest)
+	p.print(")")
+	p.printSpace()
+	p.print("{")
+	p.printNewLine()
+	p.indent++
+	for _, c := range s.Cases {
+		p.printSwitchCase(c)
+	}
+	p.indent--
+	p.print("}")
+	p.printNewLine()
 }
 
 func (p *printer) printSpace() {

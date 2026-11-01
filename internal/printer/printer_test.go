@@ -143,6 +143,7 @@ func TestPrint_Arrays(t *testing.T) {
 }
 
 func TestPrint_ForLoops(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name     string
 		input    string
@@ -155,16 +156,16 @@ func TestPrint_ForLoops(t *testing.T) {
 			expected: "for (;;);\n",
 			options:  printer.Options{Semi: true},
 		},
-		// {
-		// 	name:     "for only initalizer",
-		// 	input:    "for(true;;);",
-		// 	expected: "for (true;;);\n",
-		// 	options:  printer.Options{Semi: true},
-		// },
+		{
+			name:     "for only initalizer",
+			input:    "for(true;;);",
+			expected: "for (true;;);\n",
+			options:  printer.Options{Semi: true},
+		},
 		{
 			name:     "classic for loop",
-			input:    `for (let i = 0; i < arr.length; i++) {}`,
-			expected: `for (let i = 0; i < arr.length; i++) {\n};\n`,
+			input:    "for (let i = 0; i < arr.length; i++) {}",
+			expected: "for (let i = 0; i < arr.length; i++) {\n};\n",
 			options:  printer.Options{Semi: true},
 		},
 		{
@@ -177,6 +178,55 @@ func TestPrint_ForLoops(t *testing.T) {
 		},
 	}
 
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			program, err := parser.Parse(tc.input)
+			require.NoError(t, err)
+
+			bytes := printer.Print(program, tc.options)
+			assert.Equal(t, tc.expected, string(bytes))
+		})
+	}
+}
+
+func TestPrint_SwithStatment(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+		options  printer.Options
+	}{
+		{
+			name: "simple",
+			input: `switch (expr) {
+  case "Oranges":
+    console.log("Oranges are $0.59 a pound.");
+    break;
+  case "Mangoes":
+  case "Papayas":
+    console.log("Mangoes and papayas are $2.79 a pound.");
+    break;
+  default:
+    console.log("Out of stock");
+}`,
+			expected: `switch (expr) {
+  case "Oranges":
+    console.log("Oranges are $0.59 a pound.");
+    break;
+  case "Mangoes":
+  case "Papayas":
+    console.log("Mangoes and papayas are $2.79 a pound.");
+    break;
+  default:
+    console.log("Out of stock");
+}
+`,
+			options: printer.Options{Semi: true},
+		},
+	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

@@ -197,7 +197,12 @@ func TestParseSwitchStatement(t *testing.T) {
 			name:  "switch - no cases",
 			input: `switch (x > 5) {}`,
 			expected: &ast.SwitchStatement{
-				Discriminant: &ast.BinaryExpression{Operator: lexer.GT, Left: &ast.Identifier{Name: "x"}, Right: &ast.NumberLiteral{Value: "5"}},
+				Test: &ast.BinaryExpression{
+					Operator: lexer.GT,
+					Left:     &ast.Identifier{Name: "x"},
+					Right:    &ast.NumberLiteral{Value: "5"},
+				},
+				Cases: []ast.Case{},
 			},
 		},
 		{
@@ -207,10 +212,46 @@ func TestParseSwitchStatement(t *testing.T) {
 			break;
 		case 1:
 			break;
-			}`,
+		default:
+			break;
+		}`,
 			expected: &ast.SwitchStatement{
-				Discriminant: &ast.BinaryExpression{Operator: lexer.GT, Left: &ast.Identifier{Name: "x"}, Right: &ast.NumberLiteral{Value: "5"}},
-				Cases:        []any{},
+				Test: &ast.BinaryExpression{Operator: lexer.GT, Left: &ast.Identifier{Name: "x"}, Right: &ast.NumberLiteral{Value: "5"}},
+				Cases: []ast.Case{
+					{Value: &ast.NumberLiteral{Value: "0"}, Body: []ast.Statement{&ast.BreakStatement{}}},
+					{Value: &ast.NumberLiteral{Value: "1"}, Body: []ast.Statement{&ast.BreakStatement{}}},
+					{Body: []ast.Statement{&ast.BreakStatement{}}},
+				},
+			},
+		},
+		{
+			name: "switch - cases fallthrough",
+			input: `switch (x > 5) {
+		case 0:
+			break;
+		case 1:
+		case 2:
+			i++;
+		default:
+			i++;
+			break;
+		}`,
+			expected: &ast.SwitchStatement{
+				Test: &ast.BinaryExpression{Operator: lexer.GT, Left: &ast.Identifier{Name: "x"}, Right: &ast.NumberLiteral{Value: "5"}},
+				Cases: []ast.Case{
+					{Value: &ast.NumberLiteral{Value: "0"}, Body: []ast.Statement{&ast.BreakStatement{}}},
+					{Value: &ast.NumberLiteral{Value: "1"}, Body: []ast.Statement{}},
+					{Value: &ast.NumberLiteral{Value: "2"}, Body: []ast.Statement{
+						&ast.ExpressionStatement{
+							Expr: &ast.UpdateExpression{Operator: lexer.Increment, Argument: &ast.Identifier{Name: "i"}},
+						}}},
+					{Body: []ast.Statement{
+						&ast.ExpressionStatement{
+							Expr: &ast.UpdateExpression{Operator: lexer.Increment, Argument: &ast.Identifier{Name: "i"}},
+						},
+						&ast.BreakStatement{},
+					}},
+				},
 			},
 		},
 	}
