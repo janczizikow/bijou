@@ -174,12 +174,22 @@ func TestPrint_ForLoops(t *testing.T) {
 			options:  printer.Options{Semi: true},
 		},
 		{
-			name:  "for...in loop",
-			input: `for (const property in object) { console.log(property); }`,
-			expected: `for (const property in object) {
-			console.log(property);
-			}`,
-			options: printer.Options{Semi: true},
+			name:     "for...in loop",
+			input:    `for (const property in object) { console.log(property); }`,
+			expected: "for (const property in object) {\n  console.log(property);\n}\n",
+			options:  printer.Options{Semi: true},
+		},
+		{
+			name:     "for...of loop",
+			input:    `for (const element of array) { console.log(element); }`,
+			expected: "for (const element of array) {\n  console.log(element);\n}\n",
+			options:  printer.Options{Semi: true},
+		},
+		{
+			name:     "for await...of loop",
+			input:    `for await (const element of array) { console.log(element); }`,
+			expected: "for await (const element of array) {\n  console.log(element);\n}\n",
+			options:  printer.Options{Semi: true},
 		},
 	}
 

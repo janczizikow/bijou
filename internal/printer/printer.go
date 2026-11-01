@@ -138,7 +138,15 @@ func (p *printer) printStatement(stmt ast.Statement) {
 		p.print("for")
 		p.printSpace()
 		p.print("(")
-		p.printStatement(s.Variable)
+		switch v := s.Variable.(type) {
+		case *ast.VariableDeclaration:
+			p.printVariableDeclaration(v)
+		case *ast.ExpressionStatement:
+			p.printExpression(v.Expr, parser.Lowest)
+		default:
+			p.printStatement(s.Variable)
+		}
+		p.printSpace()
 		p.print("in")
 		p.printSpace()
 		p.printExpression(s.Object, parser.Lowest)
@@ -154,7 +162,15 @@ func (p *printer) printStatement(stmt ast.Statement) {
 			p.printSpace()
 		}
 		p.print("(")
-		p.printStatement(s.Variable)
+		switch v := s.Variable.(type) {
+		case *ast.VariableDeclaration:
+			p.printVariableDeclaration(v)
+		case *ast.ExpressionStatement:
+			p.printExpression(v.Expr, parser.Lowest)
+		default:
+			p.printStatement(s.Variable)
+		}
+		p.printSpace()
 		p.print("of")
 		p.printSpace()
 		p.printExpression(s.Iterable, parser.Lowest)
