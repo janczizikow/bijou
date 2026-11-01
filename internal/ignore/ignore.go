@@ -1,16 +1,29 @@
 package ignore
 
 import (
+	"path/filepath"
 	"regexp"
 	"strings"
 )
 
 type Ignorer struct {
-	patterns []string
+	patterns    []string
+	directories map[string]struct{}
 }
 
-func New(patterns []string) *Ignorer {
-	return &Ignorer{patterns: patterns}
+var alwaysIgnoredDirectories = []string{".git", ".svn", ".hg", "node_modules"}
+
+func New(patterns ...string) *Ignorer {
+	dirs := make(map[string]struct{}, 0)
+	for _, dir := range alwaysIgnoredDirectories {
+		dirs[dir] = struct{}{}
+	}
+	for _, pattern := range patterns {
+		if checkPattern(pattern) {
+			dirs[pattern] = struct{}{}
+		}
+	}
+	return &Ignorer{directories: dirs}
 }
 
 func checkPattern(pattern string) bool {
@@ -22,25 +35,17 @@ func checkPattern(pattern string) bool {
 }
 
 func (i *Ignorer) Add(pattern string) {
-	// TODO: check if pattern is already there?
+	// TODO: glob patterns
 	if checkPattern(pattern) {
 		i.patterns = append(i.patterns, pattern)
 	}
 }
 
 func (i *Ignorer) Ignores(pattern string) bool {
-	// TODO: actual implementation
-	return false
-}
-
-func (i *Ignorer) Filter(patterns []string) []string {
-	filtered := make([]string, 0)
-
-	for _, pattern := range patterns {
-		if !i.Ignores(pattern) {
-			filtered = append(filtered, pattern)
+	for path := range strings.SplitSeq(filepath.ToSlash(pattern), "/") {
+		if _, ok := i.directories[path]; ok {
+			return true
 		}
 	}
-
-	return filtered
+	return false
 }

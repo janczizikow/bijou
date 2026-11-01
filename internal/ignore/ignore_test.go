@@ -6,9 +6,34 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestIgnores(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		path    string
+		ignored bool
+	}{
+		{"node_modules/foo.js", true},
+		{"a/b/node_modules/foo.js", true},
+		{"./node_modules/foo.js", true},
+		{"foo/.git/config", true},
+		{".svn/entries", true},
+		{"src/.hg/x", true},
+		{"src/node_modules_utils/foo.ts", false},
+		{"src/index.js", false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.path, func(t *testing.T) {
+			t.Parallel()
+			ig := New()
+			assert.Equal(t, tc.ignored, ig.Ignores(tc.path))
+		})
+	}
+}
+
 func TestCheckPattern(t *testing.T) {
 	t.Parallel()
-	tests := []struct {
+	cases := []struct {
 		pattern string
 		result  bool
 	}{
@@ -17,10 +42,10 @@ func TestCheckPattern(t *testing.T) {
 		{pattern: "\n\t   \n", result: false},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.pattern, func(t *testing.T) {
+	for _, tc := range cases {
+		t.Run(tc.pattern, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tt.result, checkPattern(tt.pattern))
+			assert.Equal(t, tc.result, checkPattern(tc.pattern))
 		})
 	}
 }

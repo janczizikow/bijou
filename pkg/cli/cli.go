@@ -33,13 +33,12 @@ func (c CLI) Run(args []string) int {
 }
 
 func (c CLI) formatFiles(paths []string) error {
-	// TODO: get other ignore options
-	ig := ignore.New([]string{"*/.git", ".svn", ".hg", "**/node_modules"})
+	ig := ignore.New()
 
 	for _, path := range paths {
 		fileInfo, err := os.Stat(path)
 		if err != nil {
-			return fmt.Errorf("No files matching the pattern were found: %s", path)
+			return fmt.Errorf("no files matching the pattern were found: %s", path)
 		}
 
 		if fileInfo.IsDir() {
@@ -47,12 +46,19 @@ func (c CLI) formatFiles(paths []string) error {
 				if err != nil {
 					return err
 				}
+				if d.IsDir() && ig.Ignores(p) {
+					return filepath.SkipDir
+				}
 				if !d.IsDir() && !ig.Ignores(p) {
 					return c.formatAndWriteFile(p)
 				}
 				return nil
 			})
-			return err
+			if err != nil {
+				// TODO: consider skipping instead of error?
+				// return filepath.SkipDir
+				return err
+			}
 		} else if !ig.Ignores(path) {
 			return c.formatAndWriteFile(path)
 		}
@@ -64,7 +70,7 @@ func (c CLI) formatFiles(paths []string) error {
 func (c CLI) formatFile(filePath string) (string, error) {
 	bytes, err := os.ReadFile(filePath)
 	if err != nil {
-		return "", fmt.Errorf("Unable to read file: %s", filePath)
+		return "", fmt.Errorf("unable to read file: %s", filePath)
 	}
 	return api.Format(string(bytes), c.FormatOptions)
 }
@@ -73,12 +79,12 @@ func (c CLI) formatAndWriteFile(path string) error {
 	start := time.Now()
 	res, err := c.formatFile(path)
 	if err != nil {
-		return fmt.Errorf("Error formatting file %s: %w", path, err)
+		return fmt.Errorf("error formatting file %s: %w", path, err)
 	}
 
 	err = os.WriteFile(path, []byte(res), 0644)
 	if err != nil {
-		return fmt.Errorf("Unable to write file: %s", path)
+		return fmt.Errorf("unable to write file: %s", path)
 	}
 
 	duration := time.Since(start)
