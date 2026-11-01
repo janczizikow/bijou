@@ -287,6 +287,16 @@ func (p *printer) printExpression(expr ast.Expression, presedence parser.Precede
 		p.print(e.Operator.String())
 		p.printSpace()
 		p.printExpression(e.Right, parser.Lowest)
+	case *ast.ConditionalExpression:
+		p.printExpression(e.Condition, parser.Lowest)
+		p.printSpace()
+		p.print("?")
+		p.printSpace()
+		p.printExpression(e.Then, parser.Lowest)
+		p.printSpace()
+		p.print(":")
+		p.printSpace()
+		p.printExpression(e.Else, parser.Lowest)
 	case *ast.PropertyAccessExpression:
 		op := "."
 		if e.Optional {
@@ -312,6 +322,14 @@ func (p *printer) printExpression(expr ast.Expression, presedence parser.Precede
 			p.printExpression(arg, parser.Comma)
 		}
 		p.print(")")
+	case *ast.ArrowFunction:
+		p.print("(")
+		for _, arg := range e.Args {
+			p.printExpression(arg, parser.Comma)
+		}
+		p.print(")")
+		p.printSpace()
+		p.printExpression(e.Body, parser.Lowest)
 	case *ast.UpdateExpression:
 		if e.Prefix {
 			p.print(e.Operator.String())

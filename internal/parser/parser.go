@@ -571,6 +571,12 @@ func (p *Parser) parseInfix(left ast.Expression) ast.Expression {
 		}
 	case lexer.LParen:
 		return &ast.FunctionCall{Fn: left, Args: p.parseArguments()}
+	case lexer.Question:
+		p.lexer.Next()
+		then := p.parseExpression(prec - 1)
+		p.lexer.Expect(lexer.Colon)
+		els := p.parseExpression(prec - 1)
+		return &ast.ConditionalExpression{Condition: left, Then: then, Else: els}
 	default:
 		return nil
 	}

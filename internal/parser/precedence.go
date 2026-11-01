@@ -4,7 +4,7 @@ import "github.com/janczizikow/bijou/internal/lexer"
 
 type Precedence uint8
 
-// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Operator_precedence
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Operator_precedence#table
 const (
 	Lowest Precedence = iota
 	Comma
@@ -89,6 +89,8 @@ var precedences = map[lexer.Token]Precedence{
 	lexer.SubtractionAssignment:        Assignment,
 	lexer.AdditionAssignment:           Assignment,
 	lexer.Assignment:                   Assignment,
+	lexer.Arrow:                        Assignment,
+	lexer.Question:                     Assignment,
 
 	lexer.Comma: Comma,
 }

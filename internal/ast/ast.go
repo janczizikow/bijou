@@ -151,6 +151,7 @@ type SwitchStatement struct {
 // #region Expressions
 
 func (ale *ArrayLiteralExpression) expression()   {}
+func (af *ArrowFunction) expression()             {}
 func (a *Assignment) expression()                 {}
 func (bl *BooleanLiteral) expression()            {}
 func (bil *BigIntLiteral) expression()            {}
@@ -247,4 +248,9 @@ type NewExpression struct {
 
 type ParenthesizedExpression struct {
 	Expr Expression
+}
+
+type ArrowFunction struct {
+	Args []Expression
+	Body Expression
 }

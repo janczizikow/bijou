@@ -51,6 +51,11 @@ x = 4;
 			options:  printer.Options{Semi: false},
 		},
 		{
+			input:    "x ? y : z",
+			expected: "x ? y : z\n",
+			options:  printer.Options{Semi: false},
+		},
+		{
 			input:    "{}",
 			expected: "{\n}\n",
 			options:  printer.Options{Semi: false},

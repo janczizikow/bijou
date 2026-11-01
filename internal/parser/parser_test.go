@@ -555,6 +555,35 @@ func TestParseFunctionCall(t *testing.T) {
 	}
 }
 
+func TestArrowFunction(t *testing.T) {
+	t.Parallel()
+
+	input := "(a, b) => a + b"
+	expected := &ast.ArrowFunction{
+		Args: []ast.Expression{
+			&ast.Identifier{Name: "a"},
+			&ast.Identifier{Name: "b"},
+		},
+		Body: &ast.BinaryExpression{
+			Operator: lexer.Plus,
+			Left:     &ast.Identifier{Name: "a"},
+			Right:    &ast.Identifier{Name: "b"},
+		},
+	}
+	program, err := parser.Parse(input)
+	require.NoError(t, err)
+	assert.Len(t, program.Statements, 1)
+
+	expr, ok := program.Statements[0].(*ast.ExpressionStatement)
+	require.True(t, ok, fmt.Sprintf("Expected *ast.ExpressionStatement, got %T", program.Statements[0]))
+	require.NotNil(t, expr)
+
+	got, ok := expr.Expr.(*ast.ArrowFunction)
+	require.True(t, ok, fmt.Sprintf("Expected *ast.ArrowFunction, got %T", expr.Expr))
+
+	assert.Equal(t, expected, got)
+}
+
 func TestParseArrays(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
