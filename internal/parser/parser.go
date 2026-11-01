@@ -688,7 +688,9 @@ func Parse(input string) (program *ast.Program, err error) {
 	p := New(lexer.New(input))
 
 	for p.lexer.Token != lexer.EOF {
+		start := p.lexer.Span.Start
 		stmt := p.parseStatement()
+		stmt.SetSpan(lexer.Span{Start: start, End: p.lexer.PrevSpan.End})
 		program.Statements = append(program.Statements, stmt)
 	}
 

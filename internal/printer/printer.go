@@ -15,22 +15,27 @@ type Options struct {
 }
 
 type printer struct {
-	content []byte
-	options Options
-	indent  int
+	content     []byte
+	options     Options
+	indent      int
+	prevEndLine int
 }
 
-func Print(tree *ast.Program, options Options) []byte {
+func Print(program *ast.Program, options Options) []byte {
 	p := &printer{options: options}
-	for _, stmt := range tree.Statements {
-		p.printStatement(stmt)
-	}
-
+	p.printStatements(program.Statements)
 	return p.content
 }
 
 func (p *printer) print(text string) {
 	p.content = append(p.content, text...)
+}
+
+func (p *printer) printStatements(stmts []ast.Statement) {
+	for _, stmt := range stmts {
+		p.printLeadingBlankLine(stmt)
+		p.printStatement(stmt)
+	}
 }
 
 func (p *printer) printStatement(stmt ast.Statement) {
@@ -431,9 +436,7 @@ func (p *printer) printBlock(s *ast.BlockStatement, trailingNewline bool) {
 	p.print("{")
 	p.printNewLine()
 	p.indent++
-	for _, stmt := range s.Statements {
-		p.printStatement(stmt)
-	}
+	p.printStatements(s.Statements)
 	p.indent--
 	p.printIndent()
 	p.print("}")
@@ -524,6 +527,13 @@ func (p *printer) printIndent() {
 	for i := 0; i < p.indent; i++ {
 		p.print("  ")
 	}
+}
+
+func (p *printer) printLeadingBlankLine(stmt ast.Statement) {
+	if stmt.GetSpan().Start-p.prevEndLine > 1 {
+		p.printNewLine()
+	}
+	p.prevEndLine = stmt.GetSpan().End
 }
 
 func (p *printer) printSemicolonAfterStatement() {

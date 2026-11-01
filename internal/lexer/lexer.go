@@ -7,17 +7,25 @@ import (
 	"unicode/utf8"
 )
 
+type Span struct{ Start, End int }
+
+func (s Span) Len() int {
+	return s.End - s.Start
+}
+
 // Lexer represents a lexical analyzer for JavaScript source code.
 // It takes a string as input and converts it into a sequence of tokens.
 type Lexer struct {
 	source string // original input
 
-	Token   Token  // current token
-	Literal string // the token literal value, if any
+	Token    Token // current token
+	Span     Span
+	PrevSpan Span
+	Literal  string // the token literal value, if any
 
-	current rune
-	start   int
-	end     int
+	current rune // current code point
+	start   int  // byte offset of current code point
+	end     int  // byte offset past current code point
 }
 
 type LexerPanic struct {
@@ -64,12 +72,17 @@ func (l *Lexer) skipWhitespace() {
 }
 
 func (l *Lexer) Next() {
+	l.PrevSpan = l.Span
 	l.skipWhitespace()
+	start := l.start
+	l.scan()
+	l.Span = Span{Start: start, End: l.start}
+}
 
+func (l *Lexer) scan() {
 	switch l.current {
 	case -1:
 		l.Token = EOF
-
 	case '#':
 		if l.start == 0 && l.peek() == '!' {
 			// TODO: parse whole HashBang
