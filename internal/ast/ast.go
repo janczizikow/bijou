@@ -22,6 +22,7 @@ type Expression interface {
 }
 
 type Program struct {
+	Source     string
 	Statements []Statement
 }
 

@@ -349,3 +349,123 @@ func TestPrint_LabeledStatement(t *testing.T) {
 		})
 	}
 }
+
+func TestPrint_BlankLines(t *testing.T) {
+	t.Parallel()
+	semi := printer.Options{Semi: true}
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+		options  printer.Options
+	}{
+		{
+			name:     "no blank line stays none",
+			input:    "let a = 1;\nlet b = 2;",
+			expected: "let a = 1;\nlet b = 2;\n",
+			options:  semi,
+		},
+		{
+			name:     "one blank line is kept",
+			input:    "let a = 1;\n\nlet b = 2;",
+			expected: "let a = 1;\n\nlet b = 2;\n",
+			options:  semi,
+		},
+		{
+			name:     "several blank lines collapse to one",
+			input:    "let a = 1;\n\n\n\nlet b = 2;",
+			expected: "let a = 1;\n\nlet b = 2;\n",
+			options:  semi,
+		},
+		{
+			name:     "whitespace-only line counts as blank",
+			input:    "let a = 1;\n   \nlet b = 2;",
+			expected: "let a = 1;\n\nlet b = 2;\n",
+			options:  semi,
+		},
+		{
+			name:     "statements on one line are not separated",
+			input:    "let a = 1; let b = 2;",
+			expected: "let a = 1;\nlet b = 2;\n",
+			options:  semi,
+		},
+		{
+			name:     "no blank line at block start or end",
+			input:    "if (a) {\n\n  b;\n\n}",
+			expected: "if (a) {\n  b;\n}\n",
+			options:  semi,
+		},
+		{
+			name:     "indentation alone is not a blank line",
+			input:    "let a = 1;\n    let b = 2;",
+			expected: "let a = 1;\nlet b = 2;\n",
+			options:  semi,
+		},
+		{
+			name:     "CRLF: a single line break is not a blank line",
+			input:    "let a = 1;\r\nlet b = 2;",
+			expected: "let a = 1;\nlet b = 2;\n",
+			options:  semi,
+		},
+		{
+			name:     "CRLF: a blank line is kept",
+			input:    "let a = 1;\r\n\r\nlet b = 2;",
+			expected: "let a = 1;\n\nlet b = 2;\n",
+			options:  semi,
+		},
+		{
+			name:     "leading whitespace does not add a blank line",
+			input:    "  let a = 1;",
+			expected: "let a = 1;\n",
+			options:  semi,
+		},
+		{
+			name:     "leading blank lines are dropped",
+			input:    "\n\nlet a = 1;",
+			expected: "let a = 1;\n",
+			options:  semi,
+		},
+		{
+			name:     "statement right after a block gets no blank line",
+			input:    "if (a) {\n  b;\n}\nlet d = 4;",
+			expected: "if (a) {\n  b;\n}\nlet d = 4;\n",
+			options:  semi,
+		},
+		{
+			name:     "blank line after a block is kept",
+			input:    "if (a) {\n  b;\n}\n\nlet d = 4;",
+			expected: "if (a) {\n  b;\n}\n\nlet d = 4;\n",
+			options:  semi,
+		},
+		{
+			name:     "blank line inside a block is kept",
+			input:    "if (a) {\n  b;\n\n  c;\n}",
+			expected: "if (a) {\n  b;\n\n  c;\n}\n",
+			options:  semi,
+		},
+		{
+			name:     "blank line inside a function body is kept",
+			input:    "function f() {\n  let x = 1;\n\n  return x;\n}",
+			expected: "function f() {\n  let x = 1;\n\n  return x;\n}\n",
+			options:  semi,
+		},
+		{
+			name:     "blank line inside a case body is kept",
+			input:    "switch (x) {\ncase 1:\n  a;\n\n  b;\n}",
+			expected: "switch (x) {\n  case 1:\n    a;\n\n    b;\n}\n",
+			options:  semi,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			program, err := parser.Parse(tc.input)
+			require.NoError(t, err)
+
+			bytes := printer.Print(program, tc.options)
+			assert.Equal(t, tc.expected, string(bytes))
+		})
+	}
+}
