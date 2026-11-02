@@ -2,7 +2,18 @@ package ast
 
 import "github.com/janczizikow/bijou/internal/lexer"
 
+type Node interface {
+	GetSpan() lexer.Span
+	SetSpan(lexer.Span)
+}
+
+type BaseNode struct{ Span lexer.Span }
+
+func (n *BaseNode) GetSpan() lexer.Span  { return n.Span }
+func (n *BaseNode) SetSpan(s lexer.Span) { n.Span = s }
+
 type Statement interface {
+	Node
 	statement()
 }
 
@@ -11,6 +22,7 @@ type Expression interface {
 }
 
 type Program struct {
+	Source     string
 	Statements []Statement
 }
 
@@ -41,44 +53,57 @@ func (ws *WhileStatement) statement()      {}
 func (ws *WithStatement) statement()       {}
 
 type BlockStatement struct {
+	BaseNode
 	Statements []Statement
 }
 
 type BreakStatement struct {
+	BaseNode
 	Label *Identifier
 }
 
 type ContinueStatement struct {
+	BaseNode
 	Label *Identifier
 }
 
 type ClassDeclaration struct {
+	BaseNode
 	Label *Identifier
 }
 
-type DebuggerStatement struct{}
+type DebuggerStatement struct {
+	BaseNode
+}
 
 type DoWhileStatement struct {
+	BaseNode
 	Condition Expression
 	Body      *BlockStatement
 }
 
-type EmptyStatement struct{}
+type EmptyStatement struct {
+	BaseNode
+}
 
 type ExportDeclaration struct {
+	BaseNode
 }
 
 type ExpressionStatement struct {
+	BaseNode
 	Expr Expression
 }
 
 type ForInStatement struct {
+	BaseNode
 	Variable Statement
 	Object   Expression
 	Body     Statement
 }
 
 type ForOfStatement struct {
+	BaseNode
 	Await    bool
 	Variable Statement
 	Iterable Expression
@@ -86,6 +111,7 @@ type ForOfStatement struct {
 }
 
 type ForStatement struct {
+	BaseNode
 	Init         Statement
 	Condition    Expression
 	Afterthought Expression
@@ -93,6 +119,7 @@ type ForStatement struct {
 }
 
 type FunctionDeclaration struct {
+	BaseNode
 	Name        *Identifier
 	Args        []*Identifier
 	Body        *BlockStatement
@@ -101,6 +128,7 @@ type FunctionDeclaration struct {
 }
 
 type IfStatement struct {
+	BaseNode
 	Condition Expression
 	Then      Statement
 	Else      Statement
@@ -115,61 +143,73 @@ const (
 )
 
 type ImportSpecifier struct {
+	BaseNode
 	Imported, Local *Identifier
 	Kind            ImportKind
 }
 
 type ImportDeclaration struct {
+	BaseNode
 	Path       Expression
 	Specifiers []*ImportSpecifier
 }
 
 type LabeledStatement struct {
+	BaseNode
 	Label *Identifier
 	Body  Statement
 }
 
 type ReturnStatement struct {
+	BaseNode
 	ReturnValue Expression
 }
 
 type Case struct {
+	BaseNode
 	Value Expression
 	Body  []Statement
 }
 
 type SwitchStatement struct {
+	BaseNode
 	Test  Expression
 	Cases []Case
 }
 
 type ThrowStatement struct {
+	BaseNode
 	Argument Expression
 }
 
 type Catch struct {
+	BaseNode
 	Parameter Expression
 	Block     BlockStatement
 }
 
 type TryCatchStatement struct {
+	BaseNode
 	Block   BlockStatement
 	Catch   *Catch
 	Finally *BlockStatement
 }
 
 type VariableDeclaration struct {
+	BaseNode
 	Token lexer.Token // the first token of the expression
 	Name  *Identifier
 	Value Expression
 }
 
 type WhileStatement struct {
+	BaseNode
 	Condition Expression
 	Body      *BlockStatement
 }
 
 type WithStatement struct {
+	BaseNode
 	Expr Expression
 	Body Statement
 }

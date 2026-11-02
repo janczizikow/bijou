@@ -2,6 +2,7 @@ package parser_test
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/janczizikow/bijou/internal/ast"
@@ -11,6 +12,44 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// stripSpans zeros every lexer.Span recursively
+func stripSpans(v any) {
+	var walk func(reflect.Value)
+	walk = func(rv reflect.Value) {
+		switch rv.Kind() {
+		case reflect.Pointer, reflect.Interface:
+			if rv.IsNil() {
+				return
+			}
+			walk(rv.Elem())
+		case reflect.Struct:
+			if rv.Type() == reflect.TypeFor[lexer.Span]() {
+				rv.Set(reflect.Zero(rv.Type()))
+			} else {
+				for _, v := range rv.Fields() {
+					walk(v)
+				}
+			}
+		case reflect.Slice:
+			for i := range rv.Len() {
+				walk(rv.Index(i))
+			}
+		}
+	}
+	walk(reflect.ValueOf(v))
+}
+
+// parseStripped parses input and zeroes all spans, so tests can compare
+// against hand-built nodes that don't have any.
+func parseStripped(input string) (*ast.Program, error) {
+	program, err := parser.Parse(input)
+	if err != nil {
+		return program, err
+	}
+	stripSpans(program)
+	return program, nil
+}
 
 func TestParse(t *testing.T) {
 	t.Parallel()
@@ -41,7 +80,7 @@ func TestParse(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.input, func(t *testing.T) {
 			t.Parallel()
-			program, err := parser.Parse(tc.input)
+			program, err := parseStripped(tc.input)
 			require.NoError(t, err)
 
 			assert.Equal(t, tc.expected, program.Statements)
@@ -83,7 +122,7 @@ func TestAssignments(t *testing.T) {
 				Right:    &ast.Identifier{Name: "b"},
 			}
 
-			program, err := parser.Parse(input)
+			program, err := parseStripped(input)
 			require.NoError(t, err)
 			assert.Len(t, program.Statements, 1)
 
@@ -115,7 +154,7 @@ func TestParseBreak(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.input, func(t *testing.T) {
 			t.Parallel()
-			program, err := parser.Parse(tc.input)
+			program, err := parseStripped(tc.input)
 			if tc.wantErr {
 				require.Error(t, err)
 				assert.ErrorContains(t, err, "SyntaxError")
@@ -144,7 +183,7 @@ func TestParseContinue(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.input, func(t *testing.T) {
 			t.Parallel()
-			program, err := parser.Parse(tc.input)
+			program, err := parseStripped(tc.input)
 			if tc.wantErr {
 				require.Error(t, err)
 				assert.ErrorContains(t, err, "SyntaxError")
@@ -172,7 +211,7 @@ func TestParseThrow(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.input, func(t *testing.T) {
 			t.Parallel()
-			program, err := parser.Parse(tc.input)
+			program, err := parseStripped(tc.input)
 			if tc.wantErr {
 				require.Error(t, err)
 				assert.ErrorContains(t, err, "SyntaxError")
@@ -259,7 +298,7 @@ func TestParseSwitchStatement(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.input, func(t *testing.T) {
 			t.Parallel()
-			program, err := parser.Parse(tc.input)
+			program, err := parseStripped(tc.input)
 			if tc.wantErr {
 				require.Error(t, err)
 				assert.ErrorContains(t, err, "SyntaxError")
@@ -329,7 +368,7 @@ func TestParseDoWhile(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			program, err := parser.Parse(tc.input)
+			program, err := parseStripped(tc.input)
 			if tc.wantErr {
 				require.Error(t, err)
 				assert.ErrorContains(t, err, "SyntaxError")
@@ -399,7 +438,7 @@ func TestParseLabeledStatement(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			program, err := parser.Parse(tc.input)
+			program, err := parseStripped(tc.input)
 			if tc.wantErr {
 				require.Error(t, err)
 				assert.ErrorContains(t, err, "SyntaxError")
@@ -526,7 +565,7 @@ func TestParseTryCatch(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			program, err := parser.Parse(tc.input)
+			program, err := parseStripped(tc.input)
 			if tc.wantErr {
 				require.Error(t, err)
 				assert.ErrorContains(t, err, "SyntaxError")
@@ -638,7 +677,7 @@ func TestParsePropertyAccessors(t *testing.T) {
 		t.Run(tc.input, func(t *testing.T) {
 			t.Parallel()
 
-			program, err := parser.Parse(tc.input)
+			program, err := parseStripped(tc.input)
 			if tc.wantErr {
 				require.Error(t, err)
 				assert.ErrorContains(t, err, "SyntaxError")
@@ -673,7 +712,7 @@ func TestParseUpdateExpression(t *testing.T) {
 		t.Run(tc.input, func(t *testing.T) {
 			t.Parallel()
 
-			program, err := parser.Parse(tc.input)
+			program, err := parseStripped(tc.input)
 			if tc.wantErr {
 				require.Error(t, err)
 				assert.ErrorContains(t, err, "SyntaxError")
@@ -736,7 +775,7 @@ func TestParseFunctionCall(t *testing.T) {
 		t.Run(tc.input, func(t *testing.T) {
 			t.Parallel()
 
-			program, err := parser.Parse(tc.input)
+			program, err := parseStripped(tc.input)
 			require.NoError(t, err)
 			assert.Len(t, program.Statements, 1)
 
@@ -769,7 +808,7 @@ func TestArrowFunction(t *testing.T) {
 			Right:    &ast.Identifier{Name: "b"},
 		},
 	}
-	program, err := parser.Parse(input)
+	program, err := parseStripped(input)
 	require.NoError(t, err)
 	assert.Len(t, program.Statements, 1)
 
@@ -800,7 +839,7 @@ func TestParseArrays(t *testing.T) {
 		t.Run(tc.input, func(t *testing.T) {
 			t.Parallel()
 
-			program, err := parser.Parse(tc.input)
+			program, err := parseStripped(tc.input)
 			require.NoError(t, err)
 			assert.Len(t, program.Statements, 1)
 
@@ -1043,7 +1082,7 @@ func TestImportStatement(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			program, err := parser.Parse(tc.input)
+			program, err := parseStripped(tc.input)
 			if tc.wantErr {
 				require.Error(t, err)
 				assert.ErrorContains(t, err, "SyntaxError")
@@ -1134,7 +1173,7 @@ func TestParseForStatements(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			program, err := parser.Parse(tc.input)
+			program, err := parseStripped(tc.input)
 			require.NoError(t, err)
 			assert.Len(t, program.Statements, 1)
 			assert.Equal(t, tc.expected, program.Statements[0])
@@ -1173,7 +1212,7 @@ func TestParseNewExpression(t *testing.T) {
 		t.Run(tc.input, func(t *testing.T) {
 			t.Parallel()
 
-			program, err := parser.Parse(tc.input)
+			program, err := parseStripped(tc.input)
 			if tc.wantErr {
 				require.Error(t, err)
 				assert.ErrorContains(t, err, "SyntaxError")

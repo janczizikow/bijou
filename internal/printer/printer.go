@@ -2,6 +2,7 @@ package printer
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/janczizikow/bijou/internal/ast"
 	"github.com/janczizikow/bijou/internal/parser"
@@ -15,22 +16,50 @@ type Options struct {
 }
 
 type printer struct {
+	source  string
 	content []byte
 	options Options
 	indent  int
 }
 
-func Print(tree *ast.Program, options Options) []byte {
-	p := &printer{options: options}
-	for _, stmt := range tree.Statements {
-		p.printStatement(stmt)
-	}
-
+func Print(program *ast.Program, options Options) []byte {
+	p := &printer{source: program.Source, options: options}
+	p.printStatements(program.Statements)
 	return p.content
 }
 
 func (p *printer) print(text string) {
 	p.content = append(p.content, text...)
+}
+
+func (p *printer) printStatements(stmts []ast.Statement) {
+	for i, stmt := range stmts {
+		if i > 0 && p.blankLineBetween(stmts[i-1], stmt) {
+			p.printNewLine()
+		}
+		p.printStatement(stmt)
+	}
+}
+
+// blankLineBetween reports whether the source has at least one empty line
+// between the end of prev and the start of next.
+func (p *printer) blankLineBetween(prev, next ast.Statement) bool {
+	start, end := prev.GetSpan().End, next.GetSpan().Start
+	if start > end || end > len(p.source) {
+		return false
+	}
+	return countLineBreaks(p.source[start:end]) >= 2
+}
+
+// countLineBreaks counts \n, \r\n and lone \r as one line break each.
+func countLineBreaks(s string) int {
+	n := strings.Count(s, "\n")
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\r' && (i+1 == len(s) || s[i+1] != '\n') {
+			n++
+		}
+	}
+	return n
 }
 
 func (p *printer) printStatement(stmt ast.Statement) {
@@ -431,9 +460,7 @@ func (p *printer) printBlock(s *ast.BlockStatement, trailingNewline bool) {
 	p.print("{")
 	p.printNewLine()
 	p.indent++
-	for _, stmt := range s.Statements {
-		p.printStatement(stmt)
-	}
+	p.printStatements(s.Statements)
 	p.indent--
 	p.printIndent()
 	p.print("}")
@@ -491,9 +518,7 @@ func (p *printer) printSwitchCase(s ast.Case) {
 		p.printNewLine()
 	}
 	p.indent++
-	for _, body := range s.Body {
-		p.printStatement(body)
-	}
+	p.printStatements(s.Body)
 	p.indent--
 }
 
