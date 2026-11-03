@@ -234,6 +234,7 @@ func (pe *ParenthesizedExpression) expression()   {}
 func (fc *FunctionCall) expression()              {}
 func (ue *UpdateExpression) expression()          {}
 func (ne *NewExpression) expression()             {}
+func (ie *ImportExpression) expression()          {}
 
 type ConditionalExpression struct {
 	Condition Expression
@@ -319,4 +320,8 @@ type ParenthesizedExpression struct {
 type ArrowFunction struct {
 	Args []Expression
 	Body Expression
+}
+
+type ImportExpression struct {
+	Source Expression
 }

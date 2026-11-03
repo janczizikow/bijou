@@ -436,6 +436,11 @@ func (p *printer) printExpression(expr ast.Expression, presedence parser.Precede
 		for _, arg := range e.Arguments {
 			p.printExpression(arg, parser.Comma)
 		}
+	case *ast.ImportExpression:
+		p.print("import")
+		p.print("(")
+		p.printExpression(e.Source, parser.Comma)
+		p.print(")")
 	case nil:
 		break
 	default:

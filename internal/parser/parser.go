@@ -107,6 +107,10 @@ func (p *Parser) parseStatement() (stmt ast.Statement) {
 	case lexer.SWITCH:
 		stmt = p.parseSwitchStatement()
 	case lexer.IMPORT:
+		if p.lexer.PeekToken() == lexer.LParen {
+			stmt = p.parseExpressionStatement()
+			return
+		}
 		stmt = p.parseImportStatement()
 	case lexer.THROW:
 		p.lexer.Next()
@@ -150,14 +154,18 @@ func (p *Parser) parseStatement() (stmt ast.Statement) {
 			stmt = &ast.LabeledStatement{Label: &ast.Identifier{Name: label}, Body: p.parseStatement()}
 			return
 		}
-		expr := p.parseExpression(Lowest)
-		if expr == nil {
-			panic(lexer.LexerPanic{Msg: "SyntaxError: expected expression"})
-		}
-		p.semicolon()
-		stmt = &ast.ExpressionStatement{Expr: expr}
+		stmt = p.parseExpressionStatement()
 	}
 	return
+}
+
+func (p *Parser) parseExpressionStatement() ast.Statement {
+	expr := p.parseExpression(Lowest)
+	if expr == nil {
+		panic(lexer.LexerPanic{Msg: "SyntaxError: expected expression"})
+	}
+	p.semicolon()
+	return &ast.ExpressionStatement{Expr: expr}
 }
 
 func (p *Parser) parseImportStatement() ast.Statement {
@@ -487,6 +495,12 @@ func (p *Parser) parsePrefix() ast.Expression {
 		p.lexer.Next()
 		// TODO: nested switch?
 		return &ast.Identifier{Name: name, Private: tkn == lexer.PrivateIdentifier}
+	case lexer.IMPORT:
+		p.lexer.Next()
+		p.lexer.Expect(lexer.LParen)
+		src := p.parseExpression(Comma)
+		p.lexer.Expect(lexer.RParen)
+		return &ast.ImportExpression{Source: src}
 	case lexer.Exclamation, lexer.Plus, lexer.Minus:
 		tkn := p.lexer.Token
 		p.lexer.Next()
