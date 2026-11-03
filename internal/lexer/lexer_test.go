@@ -193,7 +193,7 @@ func TestPropertyAccessors(t *testing.T) {
 		expected []Token
 	}{
 		{"object.propertyName", []Token{Identifier, Dot, Identifier}},
-		{"object?.propertyName", []Token{Identifier, OptionalChaning, Identifier}},
+		{"object?.propertyName", []Token{Identifier, OptionalChaining, Identifier}},
 		{`object[expression]`, []Token{Identifier, LBracket, Identifier, RBracket}},
 		{`object.#privateProperty`, []Token{Identifier, Dot, PrivateIdentifier}},
 	}

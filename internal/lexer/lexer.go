@@ -1,7 +1,6 @@
 package lexer
 
 import (
-	"fmt"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -259,7 +258,7 @@ func (l *Lexer) scan() {
 			}
 		case '.':
 			l.step()
-			l.Token = OptionalChaning
+			l.Token = OptionalChaining
 		default:
 			l.Token = Question
 		}
@@ -413,13 +412,6 @@ func (l *Lexer) PeekToken() Token {
 	t := l.Token
 	*l = saved
 	return t
-}
-
-func (l *Lexer) Expect(t Token) {
-	if l.Token != t {
-		panic(LexerPanic{Msg: fmt.Sprintf("SyntaxError: expected %s, got %s", t.String(), l.Token.String())})
-	}
-	l.Next()
 }
 
 func (l *Lexer) scanIdentifier() string {

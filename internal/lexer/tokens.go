@@ -112,7 +112,7 @@ const (
 	RBracket
 	Exclamation
 	Question
-	OptionalChaning
+	OptionalChaining
 
 	// reserved keywords
 	// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#keywords
