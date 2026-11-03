@@ -107,7 +107,8 @@ func (p *Parser) parseStatement() (stmt ast.Statement) {
 	case lexer.SWITCH:
 		stmt = p.parseSwitchStatement()
 	case lexer.IMPORT:
-		if p.lexer.PeekToken() == lexer.LParen {
+		peek := p.lexer.PeekToken()
+		if peek == lexer.LParen || peek == lexer.Dot {
 			stmt = p.parseExpressionStatement()
 			return
 		}

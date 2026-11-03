@@ -622,6 +622,15 @@ func TestParsePropertyAccessors(t *testing.T) {
 		// 		Field: &ast.Identifier{Name: "otherName"},
 		// 	},
 		// },
+		// {
+		// 	"import.meta.url",
+		// 	false,
+		// 	&ast.PropertyAccessExpression{
+		// 		Object:   &ast.Identifier{Name: "import"},
+		// 		Field:    &ast.Identifier{Name: "meta"},
+		// 		Optional: false,
+		// 	},
+		// },
 		{
 			"object.propertyName.otherName",
 			false,
