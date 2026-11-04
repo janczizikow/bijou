@@ -590,8 +590,37 @@ func (p *Parser) parsePrefix() ast.Expression {
 		}
 	case lexer.NEW:
 		p.next()
-		constructor := p.parseExpression(PNew)
-		// hasArgs := p.lexer.Token == lexer.LParen
+		// FIXME: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/new.target
+		// if p.lexer.Token == lexer.Dot {
+		// }
+		constructor := p.parsePrefix()
+	inner:
+		for {
+			switch p.lexer.Token {
+			case lexer.Dot:
+				p.next()
+				// TODO: keywords are also allowed e.g.: object.this
+				if p.lexer.Token != lexer.Identifier && p.lexer.Token != lexer.PrivateIdentifier {
+					p.fail("Unexpected token")
+				}
+				field := p.parsePrefix()
+				constructor = &ast.PropertyAccessExpression{
+					Object: constructor,
+					Field:  field,
+				}
+			case lexer.LBracket:
+				p.next()
+				field := p.parseExpression(Lowest)
+				p.expect(lexer.RBracket)
+				constructor = &ast.PropertyAccessExpression{
+					Object:   constructor,
+					Field:    field,
+					Computed: true,
+				}
+			default:
+				break inner
+			}
+		}
 		var args []ast.Expression
 		if p.lexer.Token == lexer.LParen {
 			args = p.parseArguments()

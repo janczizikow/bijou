@@ -1197,25 +1197,37 @@ func TestParseNewExpression(t *testing.T) {
 		wantErr  bool
 		expected ast.Expression
 	}{
-		{"new", false, &ast.NewExpression{}},
 		{"new constructor", false, &ast.NewExpression{Constructor: &ast.Identifier{Name: "constructor"}}},
-		// {"new constructor()", false, &ast.NewExpression{Constructor: &ast.Identifier{Name: "constructor"}, Arguments: []ast.Expression{}}},
-		// {"new constructor(a,b)", false, &ast.NewExpression{Constructor: &ast.Identifier{Name: "constructor"}, Arguments: []ast.Expression{
-		// 	&ast.Identifier{Name: "a"},
-		// 	&ast.Identifier{Name: "b"},
-		// }}},
-		// {"new object.property(a,b)", false,
-		// 	&ast.NewExpression{
-		// 		Constructor: &ast.PropertyAccessExpression{
-		// 			Object: &ast.Identifier{Name: "object"},
-		// 			Field:  &ast.Identifier{Name: "property"},
-		// 		},
-		// 		Arguments: []ast.Expression{
-		// 			&ast.Identifier{Name: "a"},
-		// 			&ast.Identifier{Name: "b"},
-		// 		},
-		// 	},
-		// },
+		{"new constructor()", false, &ast.NewExpression{Constructor: &ast.Identifier{Name: "constructor"}, Arguments: []ast.Expression{}}},
+		{"new object.property()", false, &ast.NewExpression{
+			Constructor: &ast.PropertyAccessExpression{
+				Object: &ast.Identifier{Name: "object"},
+				Field:  &ast.Identifier{Name: "property"},
+			}, Arguments: []ast.Expression{}}},
+		{"new constructor(a,b)", false, &ast.NewExpression{Constructor: &ast.Identifier{Name: "constructor"}, Arguments: []ast.Expression{
+			&ast.Identifier{Name: "a"},
+			&ast.Identifier{Name: "b"},
+		}}},
+		{"new object.property(a,b)", false,
+			&ast.NewExpression{
+				Constructor: &ast.PropertyAccessExpression{
+					Object: &ast.Identifier{Name: "object"},
+					Field:  &ast.Identifier{Name: "property"},
+				},
+				Arguments: []ast.Expression{
+					&ast.Identifier{Name: "a"},
+					&ast.Identifier{Name: "b"},
+				},
+			},
+		},
+		//TODO: syntax error
+		// {"new", true, nil},
+		// {"new )", true, nil},
+		// {"new !a", true, nil},
+		// {"new -a()", true, nil},
+		// {"new a.", true, nil},
+		// {"new a.()", true, nil},
+		// {"new a?.b()", true, nil},
 	}
 	for _, tc := range cases {
 		t.Run(tc.input, func(t *testing.T) {
