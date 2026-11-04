@@ -122,7 +122,7 @@ func (c CLI) formatFile(filePath string) (string, error) {
 func (c CLI) formatAndWriteFile(path string) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("recovered from panic while formatting file %s: %v", r)
+			err = fmt.Errorf("recovered from panic while formatting file %s: %v", path, r)
 		}
 	}()
 	start := time.Now()
