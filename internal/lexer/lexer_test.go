@@ -26,7 +26,7 @@ func TestIdentifier(t *testing.T) {
 				assert.EqualValues(t, Identifier, l.Token)
 				assert.Equal(t, tt.expected, l.Literal)
 			} else {
-				assert.EqualValues(t, SyntaxError, l.Token)
+				assert.EqualValues(t, Illegal, l.Token)
 			}
 		})
 	}
@@ -42,8 +42,10 @@ func TestStringLiterals(t *testing.T) {
 		{"''", "", true},
 		{"'hello world'", "hello world", true},
 		{"'hello", "", false},
-		// {"'hello\nworld'", "", false},
-		// {"'hello\nworld'", "", false},
+		{"'hello\nworld'", "", false},
+		{"\"hello\r\nworld\"", "", false},
+		{"`hello\nworld`", "hello\nworld", true},
+		{"'hello\\\nworld'", "hello\\\nworld", true},
 		{`"hello \"mark\""`, `hello \"mark\"`, true},
 		{`'hello \'mark\''`, `hello \'mark\'`, true},
 		{`"\\"`, "\\\\", true},
@@ -58,7 +60,7 @@ func TestStringLiterals(t *testing.T) {
 				assert.EqualValues(t, STRING_LITERAL, l.Token)
 				assert.Equal(t, tt.expected, l.Literal)
 			} else {
-				assert.EqualValues(t, SyntaxError, l.Token)
+				assert.EqualValues(t, Illegal, l.Token)
 			}
 		})
 	}
@@ -153,34 +155,34 @@ func TestInvalidNumberLiterals(t *testing.T) {
 		token string
 		msg   string
 	}{
-		{"0b", "SyntaxError: Invalid binary literal"},
-		{"0b ", "SyntaxError: Invalid binary literal"},
-		{"0b;", "SyntaxError: Invalid binary literal"},
-		{"0b2", "SyntaxError: Invalid binary literal"},
-		{"0o", "SyntaxError: Invalid octal literal"},
-		{"0o ", "SyntaxError: Invalid octal literal"},
-		{"0o;", "SyntaxError: Invalid octal literal"},
-		{"0o9", "SyntaxError: Invalid octal literal"},
-		{"0x", "SyntaxError: Invalid hexadecimal literal"},
-		{"0x ", "SyntaxError: Invalid hexadecimal literal"},
-		{"0x;", "SyntaxError: Invalid hexadecimal literal"},
-		{"0xg", "SyntaxError: Invalid hexadecimal literal"},
-		{"1_", "SyntaxError: Numeric separator must be followed by a digit"},
-		{"1__0", "SyntaxError: Numeric separator must be followed by a digit"},
-		{"0b1_", "SyntaxError: Numeric separator must be followed by a digit"},
-		{"0x1_", "SyntaxError: Numeric separator must be followed by a digit"},
-		{"0_1", "SyntaxError: Numeric separator can not be used after leading 0."},
-		{"07n", "SyntaxError: BigInt literals cannot have a leading zero"},
-		{"1.5n", "SyntaxError: Invalid or unexpected token"},
-		{"1e2n", "SyntaxError: Invalid or unexpected token"},
+		{"0b", "Invalid binary literal"},
+		{"0b ", "Invalid binary literal"},
+		{"0b;", "Invalid binary literal"},
+		{"0b2", "Invalid binary literal"},
+		{"0o", "Invalid octal literal"},
+		{"0o ", "Invalid octal literal"},
+		{"0o;", "Invalid octal literal"},
+		{"0o9", "Invalid octal literal"},
+		{"0x", "Invalid hexadecimal literal"},
+		{"0x ", "Invalid hexadecimal literal"},
+		{"0x;", "Invalid hexadecimal literal"},
+		{"0xg", "Invalid hexadecimal literal"},
+		{"1_", "Numeric separator must be followed by a digit"},
+		{"1__0", "Numeric separator must be followed by a digit"},
+		{"0b1_", "Numeric separator must be followed by a digit"},
+		{"0x1_", "Numeric separator must be followed by a digit"},
+		{"0_1", "Numeric separator can not be used after leading 0."},
+		{"07n", "BigInt literals cannot have a leading zero"},
+		{"1.5n", "Invalid BigIntLiteral"},
+		{"1e2n", "Invalid BigIntLiteral"},
 	}
 
 	for _, tt := range cases {
 		t.Run(tt.token, func(t *testing.T) {
 			t.Parallel()
-			assert.PanicsWithValue(t, LexerPanic{Msg: tt.msg}, func() {
-				New(tt.token)
-			})
+			l := New(tt.token)
+			assert.Equal(t, Illegal, l.Token)
+			assert.Equal(t, tt.msg, l.Err.Msg)
 		})
 	}
 }

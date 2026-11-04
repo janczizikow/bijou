@@ -7,8 +7,8 @@ import (
 type Token uint8
 
 const (
-	EOF = iota
-	SyntaxError
+	Illegal Token = iota
+	EOF
 
 	// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#hashbang_comments
 	HashBang

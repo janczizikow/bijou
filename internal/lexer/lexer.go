@@ -1,6 +1,7 @@
 package lexer
 
 import (
+	"fmt"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -10,6 +11,17 @@ type Span struct{ Start, End int }
 
 func (s Span) Len() int {
 	return s.End - s.Start
+}
+
+type SyntaxError struct {
+	Msg  string
+	Span Span
+	Line int
+	Col  int
+}
+
+func (e *SyntaxError) Error() string {
+	return fmt.Sprintf("SyntaxError: %s (%d:%d)", e.Msg, e.Line, e.Col)
 }
 
 // Lexer represents a lexical analyzer for JavaScript source code.
@@ -25,10 +37,8 @@ type Lexer struct {
 	current rune // current code point
 	start   int  // byte offset of current code point
 	end     int  // byte offset past current code point
-}
 
-type LexerPanic struct {
-	Msg string
+	Err *SyntaxError
 }
 
 func New(source string) *Lexer {
@@ -36,6 +46,14 @@ func New(source string) *Lexer {
 	l.step()
 	l.Next()
 	return l
+}
+
+func (l *Lexer) errorf(format string, args ...any) {
+	l.Token = Illegal
+	l.Err = &SyntaxError{
+		Msg:  fmt.Sprintf(format, args...),
+		Span: Span{l.start, l.end},
+	}
 }
 
 func (l *Lexer) step() {
@@ -350,41 +368,30 @@ func (l *Lexer) scan() {
 		l.step()
 	// TODO: template literals?
 	case '\'', '"', '`':
-		quote := l.current
-		l.step()
-		start := l.start
-	stringLiteral:
-		for {
-			switch l.current {
-			case -1:
-				l.Token = SyntaxError
-				return
-			case '\\':
-				l.step() // consume '\'
-				l.step() // consume escaped character
-				continue
-			case quote:
-				l.step()
-				break stringLiteral
-			default:
-				l.step()
-			}
+		literal := l.scanString()
+		if l.Err != nil {
+			return
 		}
 		l.Token = STRING_LITERAL
-		l.Literal = l.source[start : l.start-1]
+		l.Literal = literal
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 		literal := l.scanNumber()
+		if l.Err != nil {
+			return
+		}
 		if l.current == 'n' {
 			// BigInts can't have decimals or exponents. The 'e'/'E' check is
 			// tricky because 'e' and 'E' are valid hex digits.
 			isHex := strings.HasPrefix(literal, "0x") || strings.HasPrefix(literal, "0X")
 			if strings.Contains(literal, ".") || (strings.ContainsAny(literal, "eE") && !isHex) {
-				panic(LexerPanic{Msg: "SyntaxError: Invalid or unexpected token"})
+				l.errorf("Invalid BigIntLiteral")
+				return
 			}
 			// `07n` is invalid, but `0n` is valid. `0o7n` is valid.
 			if len(literal) > 1 && literal[0] == '0' {
 				if literal[1] != 'x' && literal[1] != 'X' && literal[1] != 'o' && literal[1] != 'O' && literal[1] != 'b' && literal[1] != 'B' {
-					panic(LexerPanic{Msg: "SyntaxError: BigInt literals cannot have a leading zero"})
+					l.errorf("BigInt literals cannot have a leading zero")
+					return
 				}
 			}
 			l.Token = BigIntLiteral
@@ -400,7 +407,7 @@ func (l *Lexer) scan() {
 			l.Token = lookupIdentifier(l.Literal)
 		} else {
 			l.Literal = string(l.current)
-			l.Token = SyntaxError
+			l.errorf("Unexpected character %q", l.current)
 		}
 	}
 }
@@ -422,6 +429,37 @@ func (l *Lexer) scanIdentifier() string {
 	return l.source[position:l.start]
 }
 
+func (l *Lexer) scanString() string {
+	quote := l.current
+	quoteStart := l.start
+	l.step() // consume opening quote
+	position := l.start
+	for {
+		switch l.current {
+		case -1:
+			l.errorf("Unterminated string constant")
+			l.Err.Span = Span{quoteStart, l.start}
+			return ""
+		case '\n', '\r':
+			if quote != '`' {
+				l.errorf("Unterminated string constant")
+				l.Err.Span = Span{quoteStart, l.start}
+				return ""
+			}
+			l.step()
+		case '\\':
+			l.step() // consume '\'
+			l.step() // consume escaped character
+		case quote:
+			literal := l.source[position:l.start]
+			l.step() // consume closing quote
+			return literal
+		default:
+			l.step()
+		}
+	}
+}
+
 func (l *Lexer) scanNumber() string {
 	position := l.start
 
@@ -431,7 +469,8 @@ func (l *Lexer) scanNumber() string {
 			l.step() // consume '0'
 			l.step() // consume 'x' or 'X'
 			if !isHexDigit(l.current) {
-				panic(LexerPanic{Msg: "SyntaxError: Invalid hexadecimal literal"})
+				l.errorf("Invalid hexadecimal literal")
+				return ""
 			}
 			l.scanNumberPart(isHexDigit)
 			return l.source[position:l.start]
@@ -439,7 +478,8 @@ func (l *Lexer) scanNumber() string {
 			l.step() // consume '0'
 			l.step() // consume 'o' or 'O'
 			if !isOctalDigit(l.current) {
-				panic(LexerPanic{Msg: "SyntaxError: Invalid octal literal"})
+				l.errorf("Invalid octal literal")
+				return ""
 			}
 			l.scanNumberPart(isOctalDigit)
 			return l.source[position:l.start]
@@ -447,13 +487,13 @@ func (l *Lexer) scanNumber() string {
 			l.step() // consume '0'
 			l.step() // consume 'b' or 'B'
 			if !isBinaryDigit(l.current) {
-				panic(LexerPanic{Msg: "SyntaxError: Invalid binary literal"})
+				l.errorf("Invalid binary literal")
 			}
 			l.scanNumberPart(isBinaryDigit)
 			return l.source[position:l.start]
 		}
 		if l.peek() == '_' {
-			panic(LexerPanic{Msg: "SyntaxError: Numeric separator can not be used after leading 0."})
+			l.errorf("Numeric separator can not be used after leading 0.")
 		}
 	}
 
@@ -497,7 +537,8 @@ func (l *Lexer) scanNumberPart(isDigitFunc func(rune) bool) {
 		} else if l.current == '_' {
 			l.step() // consume '_'
 			if !isDigitFunc(l.current) {
-				panic(LexerPanic{Msg: "SyntaxError: Numeric separator must be followed by a digit"})
+				l.errorf("Numeric separator must be followed by a digit")
+				return
 			}
 		} else {
 			break
