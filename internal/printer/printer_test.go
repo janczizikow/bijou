@@ -247,7 +247,7 @@ func TestPrint_ForLoops(t *testing.T) {
 	}
 }
 
-func TestPrint_SwithStatment(t *testing.T) {
+func TestPrint_SwitchStatement(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name     string

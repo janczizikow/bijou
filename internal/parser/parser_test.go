@@ -75,6 +75,21 @@ func TestParse(t *testing.T) {
 				},
 			},
 		},
+		{
+			input: "x\n++y",
+			expected: []ast.Statement{
+				&ast.ExpressionStatement{
+					Expr: &ast.Identifier{Name: "x"},
+				},
+				&ast.ExpressionStatement{
+					Expr: &ast.UpdateExpression{
+						Operator: lexer.Increment,
+						Argument: &ast.Identifier{Name: "y"},
+						Prefix:   true,
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range cases {

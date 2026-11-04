@@ -29,10 +29,11 @@ func (e *SyntaxError) Error() string {
 type Lexer struct {
 	source string // original input
 
-	Token    Token // current token
-	Span     Span
-	PrevSpan Span
-	Literal  string // the token literal value, if any
+	HasNewLineBefore bool
+	Token            Token // current token
+	Span             Span
+	PrevSpan         Span
+	Literal          string // the token literal value, if any
 
 	current rune // current code point
 	start   int  // byte offset of current code point
@@ -84,11 +85,15 @@ func (l *Lexer) peek() rune {
 
 func (l *Lexer) skipWhitespace() {
 	for isWhitespace(l.current) {
+		if isLineTerminator(l.current) {
+			l.HasNewLineBefore = true
+		}
 		l.step()
 	}
 }
 
 func (l *Lexer) Next() {
+	l.HasNewLineBefore = false
 	l.PrevSpan = l.Span
 	l.skipWhitespace()
 	start := l.start
@@ -546,8 +551,25 @@ func (l *Lexer) scanNumberPart(isDigitFunc func(rune) bool) {
 	}
 }
 
+// isLineTerminator reports whether chr is a JavaScript line terminator.
+//
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#line_terminators
+func isLineTerminator(chr rune) bool {
+	return chr == '\n' || chr == '\r' || chr == 0x2028 || chr == 0x2029
+}
+
+// isWhitespace reports whether chr is a JavaScript white space.
+//
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#white_space
 func isWhitespace(chr rune) bool {
-	return unicode.IsSpace(chr)
+	switch chr {
+	case ' ', '\t', '\v', '\f', '\r', '\n':
+		return true
+	case 0x00A0, 0xFEFF:
+		return true
+	default:
+		return chr == 0x2028 || chr == 0x2029 || unicode.Is(unicode.Zs, chr)
+	}
 }
 
 func isIdentifierStart(chr rune) bool {

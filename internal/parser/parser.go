@@ -33,16 +33,14 @@ func (p *Parser) isSpecialKeyword(keyword string) bool {
 	return p.lexer.Token == lexer.Identifier && p.lexer.Literal == keyword
 }
 
-func (p *Parser) semicolon() {
-	switch p.lexer.Token {
-	case lexer.Semi:
+func (p *Parser) consumeSemicolon() {
+	switch {
+	case p.lexer.Token == lexer.Semi:
 		p.next()
-		// TODO: expect }, EOF or new line???
-		// case lexer.RBrace, lexer.EOF:
-		// default:
-		// 	if !p.lexer.HasNewLineBefore {
-		// 		p.fail( "Unexpected token, expected ';'")
-		// 	}
+	case p.lexer.Token == lexer.RBrace, p.lexer.Token == lexer.EOF, p.lexer.HasNewLineBefore:
+		// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#automatic_semicolon_insertion
+	default:
+		p.fail("Unexpected token, expected ';'")
 	}
 }
 
@@ -91,26 +89,31 @@ func (p *Parser) parseStatement() (stmt ast.Statement) {
 	case lexer.BREAK:
 		p.next()
 		label := p.parseLabel()
-		p.semicolon()
+		p.consumeSemicolon()
 		stmt = &ast.BreakStatement{Label: label}
 	case lexer.CONTINUE:
 		p.next()
 		label := p.parseLabel()
-		p.semicolon()
+		p.consumeSemicolon()
 		stmt = &ast.ContinueStatement{Label: label}
 	case lexer.DO:
 		stmt = p.parseDoWhileStatement()
 	case lexer.DEBUGGER:
 		p.next()
-		p.semicolon()
+		p.consumeSemicolon()
 		stmt = &ast.DebuggerStatement{}
 	case lexer.RETURN:
 		p.next()
-		p.semicolon()
-		stmt = &ast.ReturnStatement{ReturnValue: p.parseExpression(Lowest)}
+		var ret ast.Expression
+		if p.lexer.Token != lexer.Semi && p.lexer.Token != lexer.RBrace &&
+			p.lexer.Token != lexer.EOF && !p.lexer.HasNewLineBefore {
+			ret = p.parseExpression(Lowest)
+		}
+		p.consumeSemicolon()
+		stmt = &ast.ReturnStatement{ReturnValue: ret}
 	case lexer.VAR, lexer.LET, lexer.CONST:
 		node := p.parseVariableDeclaration()
-		p.semicolon()
+		p.consumeSemicolon()
 		stmt = node
 		return
 	case lexer.IF:
@@ -136,11 +139,11 @@ func (p *Parser) parseStatement() (stmt ast.Statement) {
 		stmt = p.parseImportStatement()
 	case lexer.THROW:
 		p.next()
-		if p.lexer.Token == lexer.EOF || p.lexer.Token == lexer.Semi {
+		if p.lexer.Token == lexer.EOF || p.lexer.Token == lexer.Semi || p.lexer.HasNewLineBefore {
 			p.fail("throw statement requires an argument")
 		}
-		p.semicolon()
 		stmt = &ast.ThrowStatement{Argument: p.parseExpression(Lowest)}
+		p.consumeSemicolon()
 	case lexer.FOR:
 		stmt = p.parseForStatement()
 	case lexer.FUNCTION:
@@ -186,7 +189,7 @@ func (p *Parser) parseExpressionStatement() ast.Statement {
 	if expr == nil {
 		p.fail("expected expression")
 	}
-	p.semicolon()
+	p.consumeSemicolon()
 	return &ast.ExpressionStatement{Expr: expr}
 }
 
@@ -266,7 +269,7 @@ func (p *Parser) parseImportStatement() ast.Statement {
 		p.fail("Unexpected token, expected a string literal")
 	}
 	path = p.parseExpression(Lowest)
-	p.semicolon()
+	p.consumeSemicolon()
 	return &ast.ImportDeclaration{Specifiers: specifiers, Path: path}
 }
 
@@ -281,7 +284,9 @@ func (p *Parser) parseDoWhileStatement() ast.Statement {
 	p.expect(lexer.LParen)
 	cond := p.parseExpression(Lowest)
 	p.expect(lexer.RParen)
-	p.semicolon()
+	if p.lexer.Token == lexer.Semi {
+		p.next()
+	}
 	return &ast.DoWhileStatement{
 		Condition: cond,
 		Body:      block,
@@ -502,7 +507,6 @@ func (p *Parser) parseExpression(precedence Precedence) ast.Expression {
 		if infix == nil {
 			break
 		}
-		// p.next() // consume semi???
 		expr = infix
 	}
 
@@ -704,6 +708,9 @@ func (p *Parser) parseInfix(left ast.Expression) ast.Expression {
 			Computed: computed,
 		}
 	case lexer.Increment, lexer.Decrement:
+		if p.lexer.HasNewLineBefore {
+			return nil
+		}
 		op := p.lexer.Token
 		p.next()
 		switch left.(type) {
@@ -727,7 +734,7 @@ func (p *Parser) parseInfix(left ast.Expression) ast.Expression {
 }
 
 func (p *Parser) parseLabel() *ast.Identifier {
-	if p.lexer.Token == lexer.Semi || p.lexer.Token == lexer.EOF || p.lexer.Token == lexer.RBrace {
+	if p.lexer.Token == lexer.Semi || p.lexer.Token == lexer.EOF || p.lexer.Token == lexer.RBrace || p.lexer.HasNewLineBefore {
 		return nil
 	}
 	name := p.lexer.Literal
