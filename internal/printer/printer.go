@@ -123,10 +123,10 @@ func (p *printer) printStatement(stmt ast.Statement) {
 	case *ast.ImportDeclaration:
 		p.print("import")
 		p.printSpace()
+		var named []*ast.ImportSpecifier
 		for _, ss := range s.Specifiers {
 			if ss.Kind == ast.ImportKindDefault {
 				p.print(ss.Local.Name)
-				p.printSpace()
 			}
 			if ss.Kind == ast.ImportKindNamespace {
 				p.print("*")
@@ -134,13 +134,34 @@ func (p *printer) printStatement(stmt ast.Statement) {
 				p.print("as")
 				p.printSpace()
 				p.print(ss.Local.Name)
-				p.printSpace()
 			}
 			if ss.Kind == ast.ImportKindNamed {
-				p.print("{")
+				named = append(named, ss)
 			}
 		}
+		if len(named) > 0 {
+			p.print("{")
+			p.printSpace()
+			for i, spec := range named {
+				if i != 0 {
+					p.print(",")
+					p.printSpace()
+				}
+				if spec.Imported.Name == spec.Local.Name {
+					p.print(spec.Imported.Name)
+				} else {
+					p.print(spec.Imported.Name)
+					p.printSpace()
+					p.print("as")
+					p.printSpace()
+					p.print(spec.Local.Name)
+				}
+			}
+			p.printSpace()
+			p.print("}")
+		}
 		if len(s.Specifiers) > 0 {
+			p.printSpace()
 			p.print("from")
 			p.printSpace()
 		}
