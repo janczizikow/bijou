@@ -9,10 +9,13 @@ import (
 )
 
 type Options struct {
+	UseTabs   bool
+	TabWidth  int
 	LineLimit int
 	// Print semicolons at the ends of statements.
-	Semi        bool
-	SingleQuote bool
+	Semi           bool
+	SingleQuote    bool
+	BracketSpacing bool
 }
 
 type printer struct {
@@ -123,9 +126,11 @@ func (p *printer) printStatement(stmt ast.Statement) {
 	case *ast.ImportDeclaration:
 		p.print("import")
 		p.printSpace()
+		var seenDefault bool
 		var named []*ast.ImportSpecifier
 		for _, ss := range s.Specifiers {
 			if ss.Kind == ast.ImportKindDefault {
+				seenDefault = true
 				p.print(ss.Local.Name)
 			}
 			if ss.Kind == ast.ImportKindNamespace {
@@ -140,6 +145,10 @@ func (p *printer) printStatement(stmt ast.Statement) {
 			}
 		}
 		if len(named) > 0 {
+			if seenDefault {
+				p.print(",")
+				p.printSpace()
+			}
 			p.print("{")
 			p.printSpace()
 			for i, spec := range named {
@@ -579,7 +588,11 @@ func (p *printer) printSpace() {
 
 func (p *printer) printIndent() {
 	for i := 0; i < p.indent; i++ {
-		p.print("  ")
+		if p.options.UseTabs {
+			p.print("\t")
+		} else {
+			p.print(strings.Repeat(" ", p.options.TabWidth))
+		}
 	}
 }
 

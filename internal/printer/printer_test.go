@@ -10,6 +10,10 @@ import (
 	"github.com/janczizikow/bijou/internal/printer"
 )
 
+func opts(semi bool) printer.Options {
+	return printer.Options{Semi: semi, TabWidth: 2}
+}
+
 func TestPrint(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
@@ -33,57 +37,57 @@ x = 4;
   return x;
 }
 `,
-			options: printer.Options{Semi: true},
+			options: opts(true),
 		},
 		{
 			input:    "return;",
 			expected: "return\n",
-			options:  printer.Options{Semi: false},
+			options:  opts(false),
 		},
 		{
 			input:    "let x;",
 			expected: "let x\n",
-			options:  printer.Options{Semi: false},
+			options:  opts(false),
 		},
 		{
 			input:    "let x = 5;",
 			expected: "let x = 5\n",
-			options:  printer.Options{Semi: false},
+			options:  opts(false),
 		},
 		{
 			input:    "x ? y : z",
 			expected: "x ? y : z\n",
-			options:  printer.Options{Semi: false},
+			options:  opts(false),
 		},
 		{
 			input:    "{}",
 			expected: "{\n}\n",
-			options:  printer.Options{Semi: false},
+			options:  opts(false),
 		},
 		{
 			input:    "if (true) { let x = 5; }",
 			expected: "if (true) {\n  let x = 5\n}\n",
-			options:  printer.Options{Semi: false},
+			options:  opts(false),
 		},
 		{
 			input:    "if (true) { let x = 5; }",
 			expected: "if (true) {\n  let x = 5\n}\n",
-			options:  printer.Options{Semi: false},
+			options:  opts(false),
 		},
 		{
 			input:    "!true;",
 			expected: "!true\n",
-			options:  printer.Options{Semi: false},
+			options:  opts(false),
 		},
 		{
 			input:    "function add(a, b) { return a + b; }",
 			expected: "function add(a, b) {\n  return a + b;\n}\n",
-			options:  printer.Options{Semi: true},
+			options:  opts(true),
 		},
 		{
 			input:    "1 + 2 * 3 - 4",
 			expected: "1 + 2 * 3 - 4\n",
-			options:  printer.Options{Semi: false},
+			options:  opts(false),
 		},
 	}
 
@@ -107,9 +111,9 @@ func TestPrint_PropertyAccess(t *testing.T) {
 		expected string
 		options  printer.Options
 	}{
-		{"object.propertyName", "object.propertyName;\n", printer.Options{Semi: true}},
-		{"object?.propertyName", "object?.propertyName;\n", printer.Options{Semi: true}},
-		{"object.#propertyName", "object.#propertyName;\n", printer.Options{Semi: true}},
+		{"object.propertyName", "object.propertyName;\n", opts(true)},
+		{"object?.propertyName", "object?.propertyName;\n", opts(true)},
+		{"object.#propertyName", "object.#propertyName;\n", opts(true)},
 	}
 	for _, tc := range cases {
 		t.Run(tc.input, func(t *testing.T) {
@@ -136,20 +140,20 @@ func TestPrint_ImportStatment(t *testing.T) {
 			name:     "side effect import",
 			input:    `import "module-name"`,
 			expected: "import \"module-name\";\n",
-			options:  printer.Options{Semi: true},
+			options:  opts(true),
 		},
 		{
 			name:     "default import",
 			input:    `import defaultExport from "module-name"`,
 			expected: "import defaultExport from \"module-name\";\n",
-			options:  printer.Options{Semi: true},
+			options:  opts(true),
 		},
 
 		{
 			name:     "namespace import with alias",
 			input:    `import * as name from "module-name"`,
 			expected: "import * as name from \"module-name\";\n",
-			options:  printer.Options{Semi: true},
+			options:  opts(true),
 		},
 	}
 	for _, tc := range cases {
@@ -172,8 +176,8 @@ func TestPrint_Arrays(t *testing.T) {
 		expected string
 		options  printer.Options
 	}{
-		{"[1,2,3]", "[1, 2, 3];\n", printer.Options{Semi: true}},
-		{"[[1,2],3]", "[[1, 2], 3];\n", printer.Options{Semi: true}},
+		{"[1,2,3]", "[1, 2, 3];\n", opts(true)},
+		{"[[1,2],3]", "[[1, 2], 3];\n", opts(true)},
 	}
 	for _, tc := range cases {
 		t.Run(tc.input, func(t *testing.T) {
@@ -200,37 +204,37 @@ func TestPrint_ForLoops(t *testing.T) {
 			name:     "empty for loop",
 			input:    "for(;;);",
 			expected: "for (;;);\n",
-			options:  printer.Options{Semi: true},
+			options:  opts(true),
 		},
 		{
 			name:     "for only initalizer",
 			input:    "for(true;;);",
 			expected: "for (true;;);\n",
-			options:  printer.Options{Semi: true},
+			options:  opts(true),
 		},
 		{
 			name:     "classic for loop",
 			input:    "for (let i = 0; i < arr.length; i++) {}",
 			expected: "for (let i = 0; i < arr.length; i++) {\n};\n",
-			options:  printer.Options{Semi: true},
+			options:  opts(true),
 		},
 		{
 			name:     "for...in loop",
 			input:    `for (const property in object) { console.log(property); }`,
 			expected: "for (const property in object) {\n  console.log(property);\n}\n",
-			options:  printer.Options{Semi: true},
+			options:  opts(true),
 		},
 		{
 			name:     "for...of loop",
 			input:    `for (const element of array) { console.log(element); }`,
 			expected: "for (const element of array) {\n  console.log(element);\n}\n",
-			options:  printer.Options{Semi: true},
+			options:  opts(true),
 		},
 		{
 			name:     "for await...of loop",
 			input:    `for await (const element of array) { console.log(element); }`,
 			expected: "for await (const element of array) {\n  console.log(element);\n}\n",
-			options:  printer.Options{Semi: true},
+			options:  opts(true),
 		},
 	}
 
@@ -280,7 +284,7 @@ func TestPrint_SwitchStatement(t *testing.T) {
     console.log("Out of stock");
 }
 `,
-			options: printer.Options{Semi: true},
+			options: opts(true),
 		},
 	}
 	for _, tc := range cases {
@@ -308,32 +312,32 @@ func TestPrint_LabeledStatement(t *testing.T) {
 			name:     "label",
 			input:    "foo: x;",
 			expected: "foo: x;\n",
-			options:  printer.Options{Semi: true},
+			options:  opts(true),
 		},
 		{
 			name:     "label without semicolons",
 			input:    "foo: x;",
 			expected: "foo: x\n",
-			options:  printer.Options{Semi: false},
+			options:  opts(false),
 		},
 		{
 			name:     "nested labels",
 			input:    "foo: bar: x",
 			expected: "foo: bar: x;\n",
-			options:  printer.Options{Semi: true},
+			options:  opts(true),
 		},
 		{
 			name:     "labeled loop with break and continue",
 			input:    "outer: for (const x of xs) { break outer; continue outer; }",
 			expected: "outer: for (const x of xs) {\n  break outer;\n  continue outer;\n}\n",
-			options:  printer.Options{Semi: true},
+			options:  opts(true),
 		},
 		// FIXME: idents
 		// {
 		// 	name:     "label inside block",
 		// 	input:    "{ foo: x; }",
 		// 	expected: "{\n  foo: x;\n}\n",
-		// 	options:  printer.Options{Semi: true},
+		// 	options:  Opts(true),
 		// },
 	}
 
@@ -352,7 +356,7 @@ func TestPrint_LabeledStatement(t *testing.T) {
 
 func TestPrint_BlankLines(t *testing.T) {
 	t.Parallel()
-	semi := printer.Options{Semi: true}
+	semi := opts(true)
 	cases := []struct {
 		name     string
 		input    string

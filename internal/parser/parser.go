@@ -186,9 +186,6 @@ func (p *Parser) parseStatement() (stmt ast.Statement) {
 
 func (p *Parser) parseExpressionStatement() ast.Statement {
 	expr := p.parseExpression(Lowest)
-	if expr == nil {
-		p.fail("expected expression")
-	}
 	p.consumeSemicolon()
 	return &ast.ExpressionStatement{Expr: expr}
 }
@@ -644,9 +641,7 @@ func (p *Parser) parsePrefix() ast.Expression {
 		}
 		return &ast.YieldExpression{Expr: expr}
 	default:
-		// p.next()
-		// TODO: check?
-		return nil
+		p.fail("expected expression")
 	}
 	return nil
 }
