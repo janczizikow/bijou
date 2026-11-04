@@ -287,6 +287,7 @@ func TestTokens(t *testing.T) {
 		{"[", LBracket},
 		{"]", RBracket},
 		{";", Semi},
+		{"...", Ellipsis},
 		// keywords
 		{"break", BREAK},
 		{"case", CASE},

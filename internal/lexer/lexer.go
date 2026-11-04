@@ -343,7 +343,12 @@ func (l *Lexer) scan() {
 		l.Token = Comma
 		l.step()
 	case '.':
-		if isDigit(l.peek()) {
+		if strings.HasPrefix(l.source[l.start:], "...") {
+			l.Token = Ellipsis
+			l.step()
+			l.step()
+			l.step()
+		} else if isDigit(l.peek()) {
 			l.Token = NUMERIC_LITERAL
 			l.Literal = l.scanNumber()
 		} else {
