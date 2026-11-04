@@ -441,6 +441,12 @@ func (p *printer) printExpression(expr ast.Expression, presedence parser.Precede
 		p.print("(")
 		p.printExpression(e.Source, parser.Comma)
 		p.print(")")
+	case *ast.YieldExpression:
+		p.print("yield")
+		if e.Expr != nil {
+			p.printSpace()
+			p.printExpression(e.Expr, parser.Lowest)
+		}
 	case nil:
 		break
 	default:

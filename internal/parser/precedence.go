@@ -31,7 +31,7 @@ var precedences = map[lexer.Token]Precedence{
 	lexer.Dot:              Call,
 	lexer.OptionalChaining: Call,
 	lexer.LBracket:         Call,
-	lexer.LParen:           Call, // TODO: could be Member acces as well?
+	lexer.LParen:           Call, // TODO: could be Member access as well?
 
 	lexer.NEW: PNew,
 

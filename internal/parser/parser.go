@@ -635,6 +635,14 @@ func (p *Parser) parsePrefix() ast.Expression {
 		expr := p.parseExpression(Comma)
 		p.expect(lexer.RParen)
 		return &ast.ParenthesizedExpression{Expr: expr}
+	case lexer.YIELD:
+		p.next()
+		var expr ast.Expression
+		if p.lexer.Token != lexer.Semi && p.lexer.Token != lexer.RBrace &&
+			p.lexer.Token != lexer.EOF && !p.lexer.HasNewLineBefore {
+			expr = p.parseExpression(Lowest)
+		}
+		return &ast.YieldExpression{Expr: expr}
 	default:
 		// p.next()
 		// TODO: check?

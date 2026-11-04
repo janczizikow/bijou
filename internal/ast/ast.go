@@ -235,6 +235,7 @@ func (fc *FunctionCall) expression()              {}
 func (ue *UpdateExpression) expression()          {}
 func (ne *NewExpression) expression()             {}
 func (ie *ImportExpression) expression()          {}
+func (ye *YieldExpression) expression()           {}
 
 type ConditionalExpression struct {
 	Condition Expression
@@ -324,4 +325,8 @@ type ArrowFunction struct {
 
 type ImportExpression struct {
 	Source Expression
+}
+
+type YieldExpression struct {
+	Expr Expression
 }
