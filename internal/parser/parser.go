@@ -7,8 +7,10 @@ import (
 	"github.com/janczizikow/bijou/internal/lexer"
 )
 
-type SyntaxError = lexer.SyntaxError
-type bailout struct{ err *SyntaxError }
+type (
+	SyntaxError = lexer.SyntaxError
+	bailout     struct{ err *SyntaxError }
+)
 
 type Parser struct {
 	lexer *lexer.Lexer
@@ -412,6 +414,75 @@ func (p *Parser) parseForStatement() ast.Statement {
 	return &ast.ForStatement{Init: left, Condition: cond, Afterthought: step, Body: body}
 }
 
+func (p *Parser) parseBindingElement() ast.Binding {
+	target := p.parseBindingTarget()
+	if p.lexer.Token == lexer.Assignment {
+		p.next()
+		return &ast.AssignmentPattern{Left: target, Right: p.parseExpression(Comma)}
+	}
+	return target
+}
+
+func (p *Parser) parseBindingTarget() ast.Binding {
+	switch p.lexer.Token {
+	case lexer.Identifier:
+		name := p.lexer.Literal
+		p.next()
+		return &ast.Identifier{Name: name}
+	case lexer.LBracket:
+		p.next()
+		return &ast.ArrayPattern{Elements: p.parseBindingList(lexer.RBracket, true)}
+	case lexer.LBrace:
+		p.next()
+		// TODO: `key: binding` properties
+		return &ast.ObjectPattern{Properties: p.parseBindingList(lexer.RBrace, false)}
+	default:
+		p.fail("binding pattern expected")
+	}
+	return nil
+}
+
+func (p *Parser) parseBindingList(closing lexer.Token, allowRest bool) []ast.Binding {
+	list := []ast.Binding{}
+	for p.lexer.Token != closing {
+		if p.lexer.Token == lexer.EOF {
+			p.fail(fmt.Sprintf("%q expected", closing.String()))
+		}
+		if p.lexer.Token == lexer.Comma {
+			p.next()
+			list = append(list, nil)
+		}
+		if p.lexer.Token == lexer.Ellipsis {
+			p.next()
+			var arg ast.Binding
+			if allowRest {
+				arg = p.parseBindingTarget()
+			} else {
+				name := p.lexer.Literal
+				p.expect(lexer.Identifier)
+				arg = &ast.Identifier{Name: name}
+			}
+			list = append(list, &ast.RestElement{Argument: arg})
+			if p.lexer.Token != closing {
+				p.fail("rest element must be last element")
+			}
+			break
+		}
+		list = append(list, p.parseBindingElement())
+		if p.lexer.Token != lexer.Comma {
+			break
+		}
+		p.next()
+	}
+	p.expect(closing)
+	return list
+}
+
+func (p *Parser) parseParameters() []ast.Binding {
+	p.expect(lexer.LParen)
+	return p.parseBindingList(lexer.RParen, true)
+}
+
 func (p *Parser) parseFunction(isAsync bool) ast.Statement {
 	p.next()
 	isGenerator := false
@@ -426,24 +497,7 @@ func (p *Parser) parseFunction(isAsync bool) ast.Statement {
 	name := &ast.Identifier{Name: p.lexer.Literal}
 	p.next() // consume identifier
 
-	p.expect(lexer.LParen)
-	args := []*ast.Identifier{}
-
-	for p.lexer.Token != lexer.RParen {
-		if p.lexer.Token != lexer.Identifier {
-			p.fail("expected identifier in function arguments")
-		}
-		args = append(args, &ast.Identifier{Name: p.lexer.Literal})
-		p.next()
-
-		if p.lexer.Token == lexer.Comma {
-			p.next()
-		} else {
-			break
-		}
-	}
-
-	p.expect(lexer.RParen)
+	params := p.parseParameters()
 	bodyStmt := p.parseStatement()
 	body, ok := bodyStmt.(*ast.BlockStatement)
 	if !ok {
@@ -451,7 +505,7 @@ func (p *Parser) parseFunction(isAsync bool) ast.Statement {
 	}
 	return &ast.FunctionDeclaration{
 		Name:        name,
-		Args:        args,
+		Params:      params,
 		Body:        body,
 		IsGenerator: isGenerator,
 		IsAsync:     isAsync,
@@ -484,10 +538,8 @@ func (p *Parser) parseSwitchStatement() ast.Statement {
 				stmts = append(stmts, p.parseStatement())
 			}
 			cases = append(cases, ast.Case{Body: stmts})
-		// case lexer.Semi:
-		// 	p.next()
-		case lexer.EOF:
-			p.fail("unexpected EOF")
+		default:
+			p.fail("unexpected token")
 		}
 	}
 	p.expect(lexer.RBrace)

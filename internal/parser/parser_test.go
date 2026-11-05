@@ -103,6 +103,112 @@ func TestParse(t *testing.T) {
 	}
 }
 
+func TestFunction(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name, input string
+		expected    ast.Statement
+	}{
+		{
+			name:  "params",
+			input: "function test(a, b) {}",
+			expected: &ast.FunctionDeclaration{
+				Name: &ast.Identifier{Name: "test"},
+				Params: []ast.Binding{
+					&ast.Identifier{Name: "a"},
+					&ast.Identifier{Name: "b"},
+				},
+			},
+		},
+		{
+			name:  "params rest",
+			input: "function test(a, ...b) {}",
+			expected: &ast.FunctionDeclaration{
+				Name: &ast.Identifier{Name: "test"},
+				Params: []ast.Binding{
+					&ast.Identifier{Name: "a"},
+					&ast.RestElement{Argument: &ast.Identifier{Name: "b"}},
+				},
+			},
+		},
+		{
+			name:  "params - array pattern",
+			input: "function test([a, b]) {}",
+			expected: &ast.FunctionDeclaration{
+				Name: &ast.Identifier{Name: "test"},
+				Params: []ast.Binding{
+					&ast.ArrayPattern{
+						Elements: []ast.Binding{
+							&ast.Identifier{Name: "a"},
+							&ast.Identifier{Name: "b"},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:  "params - array pattern with hole",
+			input: "function test([a, ,c]) {}",
+			expected: &ast.FunctionDeclaration{
+				Name: &ast.Identifier{Name: "test"},
+				Params: []ast.Binding{
+					&ast.ArrayPattern{
+						Elements: []ast.Binding{
+							&ast.Identifier{Name: "a"},
+							nil,
+							&ast.Identifier{Name: "c"},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:  "params - array pattern rest",
+			input: "function test([a, ...b]) {}",
+			expected: &ast.FunctionDeclaration{
+				Name: &ast.Identifier{Name: "test"},
+				Params: []ast.Binding{
+					&ast.ArrayPattern{
+						Elements: []ast.Binding{
+							&ast.Identifier{Name: "a"},
+							&ast.RestElement{Argument: &ast.Identifier{Name: "b"}},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:  "params - object pattern",
+			input: "function test({a, b}) {}",
+			expected: &ast.FunctionDeclaration{
+				Name: &ast.Identifier{Name: "test"},
+				Params: []ast.Binding{
+					&ast.ObjectPattern{
+						Properties: []ast.Binding{
+							&ast.Identifier{Name: "a"},
+							&ast.Identifier{Name: "b"},
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			prog, err := parseStripped(tc.input)
+			require.NoError(t, err)
+
+			require.NoError(t, err)
+			assert.Len(t, prog.Statements, 1)
+
+			expr, ok := prog.Statements[0].(*ast.FunctionDeclaration)
+			require.True(t, ok, fmt.Sprintf("Expected *ast.FunctionDeclaration, got %T", prog.Statements[0]))
+			require.NotNil(t, expr)
+		})
+	}
+}
+
 func TestAssignments(t *testing.T) {
 	t.Parallel()
 	cases := []struct {

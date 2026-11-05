@@ -114,6 +114,8 @@ func TestPrint_PropertyAccess(t *testing.T) {
 		{"object.propertyName", "object.propertyName;\n", opts(true)},
 		{"object?.propertyName", "object?.propertyName;\n", opts(true)},
 		{"object.#propertyName", "object.#propertyName;\n", opts(true)},
+		{"object[\"propertyName\"]", "object[\"propertyName\"];\n", opts(true)},
+		{"object[x+y]", "object[x + y];\n", opts(true)},
 	}
 	for _, tc := range cases {
 		t.Run(tc.input, func(t *testing.T) {
