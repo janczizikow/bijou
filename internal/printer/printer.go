@@ -260,16 +260,61 @@ func (p *printer) printFunctionDeclaration(s *ast.FunctionDeclaration) {
 	p.printSpace()
 	p.printExpression(s.Name, parser.Lowest)
 	p.print("(")
-	for i, arg := range s.Args {
+	for i, param := range s.Params {
 		if i > 0 {
 			p.print(",")
 			p.printSpace()
 		}
-		p.printExpression(arg, parser.Lowest)
+		p.printBinding(param)
 	}
 	p.print(")")
 	p.printSpace()
 	p.printBlock(s.Body, true)
+}
+
+func (p *printer) printBinding(b ast.Binding) {
+	switch v := b.(type) {
+	case *ast.Identifier:
+		p.print(v.Name)
+	case *ast.AssignmentPattern:
+		p.printBinding(v.Left)
+		p.print(" = ")
+		p.printExpression(v.Right, parser.Lowest)
+	case *ast.RestElement:
+		p.print("...")
+		p.printBinding(v.Argument)
+	case *ast.KeyValuePatternProperty:
+		if v.Computed {
+			p.print("[")
+			p.printExpression(v.Key, parser.Lowest)
+			p.print("]")
+			p.print(":")
+			p.printSpace()
+			p.printBinding(v.Value)
+		}
+	case *ast.ArrayPattern:
+		p.print("[")
+		for i, el := range v.Elements {
+			p.printBinding(el)
+			if i < len(v.Elements)-1 {
+				p.print(",")
+				p.printSpace()
+			}
+		}
+		p.print("]")
+	case *ast.ObjectPattern:
+		p.print("{")
+		for i, el := range v.Properties {
+			p.printBinding(el)
+			if i < len(v.Properties)-1 {
+				p.print(",")
+				p.printSpace()
+			}
+		}
+		p.print("}")
+	case nil:
+		p.printSpace()
+	}
 }
 
 func (p *printer) printFor(s *ast.ForStatement) {

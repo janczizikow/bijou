@@ -414,6 +414,15 @@ func (p *Parser) parseForStatement() ast.Statement {
 	return &ast.ForStatement{Init: left, Condition: cond, Afterthought: step, Body: body}
 }
 
+func (p *Parser) parseBindingElement() ast.Binding {
+	target := p.parseBindingTarget()
+	if p.lexer.Token == lexer.Assignment {
+		p.next()
+		return &ast.AssignmentPattern{Left: target, Right: p.parseExpression(Comma)}
+	}
+	return target
+}
+
 func (p *Parser) parseBindingTarget() ast.Binding {
 	switch p.lexer.Token {
 	case lexer.Identifier:
@@ -459,7 +468,7 @@ func (p *Parser) parseBindingList(closing lexer.Token, allowRest bool) []ast.Bin
 			}
 			break
 		}
-		list = append(list, p.parseBindingTarget())
+		list = append(list, p.parseBindingElement())
 		if p.lexer.Token != lexer.Comma {
 			break
 		}
