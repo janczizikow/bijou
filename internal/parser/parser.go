@@ -414,85 +414,64 @@ func (p *Parser) parseForStatement() ast.Statement {
 	return &ast.ForStatement{Init: left, Condition: cond, Afterthought: step, Body: body}
 }
 
-func (p *Parser) parseParameter() ast.Binding {
-	if p.lexer.Token == lexer.Identifier {
-		left := &ast.Identifier{Name: p.lexer.Literal}
+func (p *Parser) parseBindingTarget() ast.Binding {
+	switch p.lexer.Token {
+	case lexer.Identifier:
+		name := p.lexer.Literal
 		p.next()
-		switch p.lexer.Token {
-		case lexer.Assignment:
-			p.next()
-			return &ast.AssignmentPattern{Left: left, Right: p.parseExpression(Lowest)}
-		// case p.lexer.Token == lexer.Ellipsis && left != nil:
-		//  p.lexer.Next()
-		//  params = append(params, &ast.ArrayPattern{Argument: left})
-		default:
-			return left
-		}
-	}
-
-	if p.lexer.Token == lexer.LBracket {
+		return &ast.Identifier{Name: name}
+	case lexer.LBracket:
 		p.next()
-		arr := &ast.ArrayPattern{}
-		for p.lexer.Token != lexer.RBracket {
-			if p.lexer.Token == lexer.EOF {
-				p.fail("\"]\" expected")
-			}
-			arr.Elements = append(arr.Elements, p.parseParameter())
-			if p.lexer.Token == lexer.Comma {
-				p.next()
-			} else {
-				break
-			}
-		}
-		p.expect(lexer.RBracket)
-		return arr
-	}
-
-	if p.lexer.Token == lexer.LBrace {
+		return &ast.ArrayPattern{Elements: p.parseBindingList(lexer.RBracket, true)}
+	case lexer.LBrace:
 		p.next()
-		obj := &ast.ObjectPattern{}
-		for p.lexer.Token != lexer.RBrace {
-			if p.lexer.Token == lexer.EOF {
-				p.fail("\"}\" expected")
-			}
-			prop := p.parseParameter()
-			obj.Properties = append(obj.Properties, prop)
-			if p.lexer.Token == lexer.Comma {
-				p.next()
-			} else {
-				break
-			}
-		}
-		p.expect(lexer.RBrace)
-		return obj
+		// TODO: `key: binding` properties
+		return &ast.ObjectPattern{Properties: p.parseBindingList(lexer.RBrace, false)}
+	default:
+		p.fail("binding pattern expected")
 	}
-
-	if p.lexer.Token == lexer.Ellipsis {
-		p.next()
-		arg := p.lexer.Literal
-		p.expect(lexer.Identifier)
-		if p.lexer.Token != lexer.RParen {
-			p.fail("expected \")\"")
-		}
-		return &ast.RestElement{Argument: &ast.Identifier{Name: arg}}
-	}
-
 	return nil
+}
+
+func (p *Parser) parseBindingList(closing lexer.Token, allowRest bool) []ast.Binding {
+	list := []ast.Binding{}
+	for p.lexer.Token != closing {
+		if p.lexer.Token == lexer.EOF {
+			p.fail(fmt.Sprintf("%q expected", closing.String()))
+		}
+		if p.lexer.Token == lexer.Comma {
+			p.next()
+			list = append(list, nil)
+		}
+		if p.lexer.Token == lexer.Ellipsis {
+			p.next()
+			var arg ast.Binding
+			if allowRest {
+				arg = p.parseBindingTarget()
+			} else {
+				name := p.lexer.Literal
+				p.expect(lexer.Identifier)
+				arg = &ast.Identifier{Name: name}
+			}
+			list = append(list, &ast.RestElement{Argument: arg})
+			if p.lexer.Token != closing {
+				p.fail("rest element must be last element")
+			}
+			break
+		}
+		list = append(list, p.parseBindingTarget())
+		if p.lexer.Token != lexer.Comma {
+			break
+		}
+		p.next()
+	}
+	p.expect(closing)
+	return list
 }
 
 func (p *Parser) parseParameters() []ast.Binding {
 	p.expect(lexer.LParen)
-	params := []ast.Binding{}
-	for p.lexer.Token != lexer.RParen {
-		params = append(params, p.parseParameter())
-		if p.lexer.Token == lexer.Comma {
-			p.next()
-		} else {
-			break
-		}
-	}
-	p.expect(lexer.RParen)
-	return params
+	return p.parseBindingList(lexer.RParen, true)
 }
 
 func (p *Parser) parseFunction(isAsync bool) ast.Statement {
