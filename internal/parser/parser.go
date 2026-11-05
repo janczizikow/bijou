@@ -7,8 +7,10 @@ import (
 	"github.com/janczizikow/bijou/internal/lexer"
 )
 
-type SyntaxError = lexer.SyntaxError
-type bailout struct{ err *SyntaxError }
+type (
+	SyntaxError = lexer.SyntaxError
+	bailout     struct{ err *SyntaxError }
+)
 
 type Parser struct {
 	lexer *lexer.Lexer
@@ -412,6 +414,87 @@ func (p *Parser) parseForStatement() ast.Statement {
 	return &ast.ForStatement{Init: left, Condition: cond, Afterthought: step, Body: body}
 }
 
+func (p *Parser) parseParameter() ast.Binding {
+	if p.lexer.Token == lexer.Identifier {
+		left := &ast.Identifier{Name: p.lexer.Literal}
+		p.next()
+		switch p.lexer.Token {
+		case lexer.Assignment:
+			p.next()
+			return &ast.AssignmentPattern{Left: left, Right: p.parseExpression(Lowest)}
+		// case p.lexer.Token == lexer.Ellipsis && left != nil:
+		//  p.lexer.Next()
+		//  params = append(params, &ast.ArrayPattern{Argument: left})
+		default:
+			return left
+		}
+	}
+
+	if p.lexer.Token == lexer.LBracket {
+		p.next()
+		arr := &ast.ArrayPattern{}
+		for p.lexer.Token != lexer.RBracket {
+			if p.lexer.Token == lexer.EOF {
+				p.fail("\"]\" expected")
+			}
+			arr.Elements = append(arr.Elements, p.parseParameter())
+			if p.lexer.Token == lexer.Comma {
+				p.next()
+			} else {
+				break
+			}
+		}
+		p.expect(lexer.RBracket)
+		return arr
+	}
+
+	if p.lexer.Token == lexer.LBrace {
+		p.next()
+		obj := &ast.ObjectPattern{}
+		for p.lexer.Token != lexer.RBrace {
+			if p.lexer.Token == lexer.EOF {
+				p.fail("\"}\" expected")
+			}
+			prop := p.parseParameter()
+			obj.Properties = append(obj.Properties, prop)
+			if p.lexer.Token == lexer.Comma {
+				p.next()
+			} else {
+				break
+			}
+		}
+		p.expect(lexer.RBrace)
+		return obj
+	}
+
+	if p.lexer.Token == lexer.Ellipsis {
+		p.next()
+		arg := p.lexer.Literal
+		p.expect(lexer.Identifier)
+		if p.lexer.Token != lexer.RParen {
+			p.fail("expected \")\"")
+		}
+		return &ast.RestElement{Argument: &ast.Identifier{Name: arg}}
+	}
+
+	return nil
+}
+
+func (p *Parser) parseParameters() []ast.Binding {
+	p.expect(lexer.LParen)
+	params := []ast.Binding{}
+	for p.lexer.Token != lexer.RParen {
+		params = append(params, p.parseParameter())
+		if p.lexer.Token == lexer.Comma {
+			p.next()
+		} else {
+			break
+		}
+	}
+	p.expect(lexer.RParen)
+	return params
+}
+
 func (p *Parser) parseFunction(isAsync bool) ast.Statement {
 	p.next()
 	isGenerator := false
@@ -426,24 +509,7 @@ func (p *Parser) parseFunction(isAsync bool) ast.Statement {
 	name := &ast.Identifier{Name: p.lexer.Literal}
 	p.next() // consume identifier
 
-	p.expect(lexer.LParen)
-	args := []*ast.Identifier{}
-
-	for p.lexer.Token != lexer.RParen {
-		if p.lexer.Token != lexer.Identifier {
-			p.fail("expected identifier in function arguments")
-		}
-		args = append(args, &ast.Identifier{Name: p.lexer.Literal})
-		p.next()
-
-		if p.lexer.Token == lexer.Comma {
-			p.next()
-		} else {
-			break
-		}
-	}
-
-	p.expect(lexer.RParen)
+	params := p.parseParameters()
 	bodyStmt := p.parseStatement()
 	body, ok := bodyStmt.(*ast.BlockStatement)
 	if !ok {
@@ -451,7 +517,7 @@ func (p *Parser) parseFunction(isAsync bool) ast.Statement {
 	}
 	return &ast.FunctionDeclaration{
 		Name:        name,
-		Args:        args,
+		Params:      params,
 		Body:        body,
 		IsGenerator: isGenerator,
 		IsAsync:     isAsync,
@@ -484,10 +550,8 @@ func (p *Parser) parseSwitchStatement() ast.Statement {
 				stmts = append(stmts, p.parseStatement())
 			}
 			cases = append(cases, ast.Case{Body: stmts})
-		// case lexer.Semi:
-		// 	p.next()
-		case lexer.EOF:
-			p.fail("unexpected EOF")
+		default:
+			p.fail("unexpected token")
 		}
 	}
 	p.expect(lexer.RBrace)

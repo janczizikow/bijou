@@ -21,9 +21,45 @@ type Expression interface {
 	expression()
 }
 
+type Binding interface {
+	binding()
+}
+
 type Program struct {
 	Source     string
 	Statements []Statement
+}
+
+// #region Bindings
+
+func (ap *AssignmentPattern) binding()       {}
+func (ap *ArrayPattern) binding()            {}
+func (op *ObjectPattern) binding()           {}
+func (i *Identifier) binding()               {}
+func (re *RestElement) binding()             {}
+func (kv *KeyValuePatternProperty) binding() {}
+
+type RestElement struct {
+	Argument Binding
+}
+
+type KeyValuePatternProperty struct {
+	Key      Expression
+	Value    Binding
+	Computed bool
+}
+
+type AssignmentPattern struct {
+	Left  Binding
+	Right Expression
+}
+
+type ArrayPattern struct {
+	Elements []Binding
+}
+
+type ObjectPattern struct {
+	Properties []Binding
 }
 
 // #region Statements
@@ -121,7 +157,7 @@ type ForStatement struct {
 type FunctionDeclaration struct {
 	BaseNode
 	Name        *Identifier
-	Args        []*Identifier
+	Params      []Binding
 	Body        *BlockStatement
 	IsGenerator bool
 	IsAsync     bool
