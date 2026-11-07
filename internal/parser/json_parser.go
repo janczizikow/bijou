@@ -19,11 +19,22 @@ func (p *jsonParser) next() {
 	p.lexer.Next()
 }
 
+func (p *jsonParser) fail(msg string) {
+	if p.lexer.Token == lexer.Illegal {
+		panic(bailout{p.lexer.Err})
+	}
+	panic(bailout{&SyntaxError{Msg: msg, Span: p.lexer.Span}})
+}
+
 func (p *jsonParser) expect(t lexer.Token) {
 	if p.lexer.Token != t {
-		panic(fmt.Sprintf("Unexpected token %q", p.lexer.Token.String()))
+		p.fail(fmt.Sprintf("Unexpected token %q", p.lexer.Token.String()))
 	}
 	p.next()
+}
+
+func (p *jsonParser) peek() lexer.Token {
+	return p.lexer.PeekToken()
 }
 
 func (p *jsonParser) parseExpression() ast.Expression {
@@ -51,10 +62,10 @@ func (p *jsonParser) parseExpression() ast.Expression {
 		elements := make([]ast.Expression, 0)
 		for p.lexer.Token != lexer.RBracket {
 			if p.lexer.Token == lexer.EOF {
-				panic("unexpected EOF")
+				p.fail("unexpected EOF")
 			}
 			elements = append(elements, p.parseExpression())
-			if p.lexer.Token == lexer.Comma {
+			if p.lexer.Token == lexer.Comma && p.lexer.PeekToken() != lexer.RBracket {
 				p.next()
 			} else {
 				break
@@ -67,13 +78,13 @@ func (p *jsonParser) parseExpression() ast.Expression {
 		properties := make([]ast.ObjectProperty, 0)
 		for p.lexer.Token != lexer.RBrace {
 			if p.lexer.Token == lexer.EOF {
-				panic("unexpected EOF")
+				p.fail("unexpected EOF")
 			}
 			key := p.parseExpression()
 			p.expect(lexer.Colon)
 			value := p.parseExpression()
 			properties = append(properties, ast.ObjectProperty{Key: key, Value: value})
-			if p.lexer.Token == lexer.Comma {
+			if p.lexer.Token == lexer.Comma && p.lexer.PeekToken() != lexer.RBrace {
 				p.next()
 			} else {
 				break
@@ -81,27 +92,35 @@ func (p *jsonParser) parseExpression() ast.Expression {
 		}
 		p.expect(lexer.RBrace)
 		return &ast.ObjectLiteralExpression{Properties: properties}
+	case lexer.Minus:
+		p.next()
+		if p.lexer.Token != lexer.NUMERIC_LITERAL {
+			p.fail(fmt.Sprintf("unexpected token %q", p.lexer.Token.String()))
+		}
+		literal := "-" + p.lexer.Literal
+		p.next()
+		return &ast.NumberLiteral{Value: literal}
 	default:
-		panic(fmt.Sprintf("unexpected token %q", p.lexer.Token.String()))
+		p.fail(fmt.Sprintf("unexpected token %q", p.lexer.Token.String()))
+		return nil
 	}
 }
 
-func ParseJSON(input string) (ast.Expression, error) {
+func ParseJSON(input string) (expr ast.Expression, err error) {
 	defer func() {
-		r := recover()
-		if r == nil {
-			return
+		if r := recover(); r != nil {
+			b, ok := r.(bailout)
+			if !ok {
+				panic(b)
+			}
+			// TODO: error tracking
+			// b.err.Line, b.err.Col = position(input, b.err.Span.Start)
+			expr, err = nil, b.err
 		}
-		b, ok := r.(bailout)
-		if !ok {
-			panic(b)
-		}
-		b.err.Line, b.err.Col = position(input, b.err.Span.Start)
 	}()
-	p := newJsonParser(lexer.New(input))
-	var expr ast.Expression
+	p := newJsonParser(lexer.NewJSON(input))
 	for p.lexer.Token != lexer.EOF {
 		expr = p.parseExpression()
 	}
-	return expr, nil
+	return
 }

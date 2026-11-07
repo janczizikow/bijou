@@ -7,6 +7,14 @@ import (
 	"unicode/utf8"
 )
 
+type LexerMode uint8
+
+const (
+	JSMode LexerMode = iota
+	JSONMode
+	TSMode
+)
+
 type Span struct{ Start, End int }
 
 func (s Span) Len() int {
@@ -28,6 +36,7 @@ func (e *SyntaxError) Error() string {
 // It takes a string as input and converts it into a sequence of tokens.
 type Lexer struct {
 	source string // original input
+	mode   LexerMode
 
 	HasNewLineBefore bool
 	Token            Token // current token
@@ -43,7 +52,14 @@ type Lexer struct {
 }
 
 func New(source string) *Lexer {
-	l := &Lexer{source: source}
+	l := &Lexer{source: source, mode: JSMode}
+	l.step()
+	l.Next()
+	return l
+}
+
+func NewJSON(source string) *Lexer {
+	l := &Lexer{source: source, mode: JSONMode}
 	l.step()
 	l.Next()
 	return l
@@ -343,6 +359,10 @@ func (l *Lexer) scan() {
 		l.Token = Comma
 		l.step()
 	case '.':
+		if l.mode == JSONMode {
+			l.errorf("unexpected token %q", l.current)
+			return
+		}
 		if strings.HasPrefix(l.source[l.start:], "...") {
 			l.Token = Ellipsis
 			l.step()
@@ -378,6 +398,10 @@ func (l *Lexer) scan() {
 		l.step()
 	// TODO: template literals?
 	case '\'', '"', '`':
+		if l.mode == JSONMode && l.current != '"' {
+			l.errorf("Unexpected character %q", l.current)
+			return
+		}
 		literal := l.scanString()
 		if l.Err != nil {
 			return
@@ -474,6 +498,10 @@ func (l *Lexer) scanNumber() string {
 	position := l.start
 
 	if l.current == '0' {
+		if l.mode == JSONMode {
+			l.errorf("unexpected token")
+			return ""
+		}
 		switch l.peek() {
 		case 'x', 'X':
 			l.step() // consume '0'
@@ -515,6 +543,9 @@ func (l *Lexer) scanNumber() string {
 		l.step() // consume '.'
 		if isDigit(l.current) {
 			l.scanNumberPart(isDigit)
+		} else if l.mode == JSONMode {
+			l.errorf("unexpected token")
+			return ""
 		}
 	}
 
@@ -545,6 +576,10 @@ func (l *Lexer) scanNumberPart(isDigitFunc func(rune) bool) {
 		if isDigitFunc(l.current) {
 			l.step()
 		} else if l.current == '_' {
+			if l.mode == JSONMode {
+				l.errorf("Numeric seprators unsupported in JSON mode")
+				return
+			}
 			l.step() // consume '_'
 			if !isDigitFunc(l.current) {
 				l.errorf("Numeric separator must be followed by a digit")
