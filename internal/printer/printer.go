@@ -30,6 +30,11 @@ func Print(program *ast.Program, options Options) []byte {
 	p.printStatements(program.Statements)
 	return p.content
 }
+func PrintExpression(expr ast.Expression, options Options) []byte {
+	p := &printer{source: "", options: options}
+	p.printExpression(expr, parser.Lowest)
+	return p.content
+}
 
 func (p *printer) print(text string) {
 	p.content = append(p.content, text...)
@@ -446,6 +451,18 @@ func (p *printer) printExpression(expr ast.Expression, presedence parser.Precede
 			}
 		}
 		p.print("]")
+	case *ast.ObjectLiteralExpression:
+		p.print("{")
+		for i, el := range e.Properties {
+			p.printExpression(el.Key, parser.Lowest)
+			p.print(":")
+			p.printExpression(el.Value, parser.Lowest)
+			if i < len(e.Properties)-1 {
+				p.print(",")
+				p.printSpace()
+			}
+		}
+		p.print("}")
 	case *ast.Assignment:
 		p.printExpression(e.Left, parser.Lowest)
 		p.printSpace()

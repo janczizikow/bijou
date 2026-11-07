@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -116,7 +117,13 @@ func (c CLI) formatFile(filePath string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("unable to read file: %s", filePath)
 	}
-	return api.Format(string(bytes), c.FormatOptions)
+	switch strings.ToLower(filepath.Ext(filePath)) {
+	// TODO: ".json5"
+	case ".json":
+		return api.FormatJSON(string(bytes), c.FormatOptions)
+	default:
+		return api.Format(string(bytes), c.FormatOptions)
+	}
 }
 
 func (c CLI) formatAndWriteFile(path string) (err error) {

@@ -618,11 +618,15 @@ func (p *Parser) parsePrefix() ast.Expression {
 		return &ast.ArrayLiteralExpression{Elements: elements}
 	case lexer.LBrace:
 		p.next()
+		properties := make([]ast.ObjectProperty, 0)
 		for p.lexer.Token != lexer.RBrace {
 			if p.lexer.Token == lexer.EOF || p.lexer.Token == lexer.Semi {
 				p.fail("'}' expected.")
 			}
-			// TODO: handle key value pairs??
+			key := p.parseExpression(Lowest)
+			p.expect(lexer.Colon)
+			value := p.parseExpression(Lowest)
+			properties = append(properties, ast.ObjectProperty{Key: key, Value: value})
 			if p.lexer.Token == lexer.Comma {
 				p.next()
 			} else {
@@ -630,7 +634,7 @@ func (p *Parser) parsePrefix() ast.Expression {
 			}
 		}
 		p.expect(lexer.RBrace)
-		return &ast.ObjectLiteralExpression{}
+		return &ast.ObjectLiteralExpression{Properties: properties}
 	case lexer.Increment, lexer.Decrement:
 		op := p.lexer.Token
 		p.next()
