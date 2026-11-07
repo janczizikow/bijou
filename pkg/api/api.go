@@ -27,10 +27,26 @@ func Format(input string, options FormatOptions) (string, error) {
 	return string(res), nil
 }
 
+func FormatJSON(input string, options FormatOptions) (string, error) {
+	expr, err := parser.ParseJSON(input)
+	if err != nil {
+		return "", err
+	}
+	opts := toPrinterOptions(options)
+	opts.SingleQuote = false
+	res := printer.PrintExpression(expr, opts)
+
+	return string(res), nil
+}
+
 func toPrinterOptions(options FormatOptions) printer.Options {
 	return printer.Options{
 		LineLimit:   options.PrintWidth,
 		Semi:        options.Semi,
 		SingleQuote: options.SingleQuote,
+		UseTabs:     options.UseTabs,
+		TabWidth:    options.TabWidth,
+		// TrailingComma
+		BracketSpacing: options.BracketSpacing,
 	}
 }

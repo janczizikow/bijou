@@ -111,7 +111,7 @@ func ParseJSON(input string) (expr ast.Expression, err error) {
 		if r := recover(); r != nil {
 			b, ok := r.(bailout)
 			if !ok {
-				panic(b)
+				panic(r)
 			}
 			// TODO: error tracking
 			// b.err.Line, b.err.Col = position(input, b.err.Span.Start)
