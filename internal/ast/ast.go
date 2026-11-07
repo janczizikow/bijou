@@ -341,8 +341,15 @@ type ArrayLiteralExpression struct {
 	Elements []Expression
 }
 
+type ObjectProperty struct {
+	Key       Expression
+	Value     Expression
+	Computed  bool
+	Shorthand bool
+}
+
 type ObjectLiteralExpression struct {
-	// TODO: key and values?
+	Properties []ObjectProperty
 }
 
 type NewExpression struct {
