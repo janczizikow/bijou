@@ -1,5 +1,5 @@
 build:
-	go build -o=./bin/bijou ./cmd/bijou
+	CGO_ENABLED=0 go build -o=./bin/bijou ./cmd/bijou
 
 vendor:
 	@go mod tidy
