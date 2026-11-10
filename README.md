@@ -4,8 +4,14 @@ https://github.com/prettier/prettier/tree/0.0.1
 https://github.com/prettier/prettier/tree/1.0.0
 https://github.com/estree/estree
 
+TODO: design
+- [ ] output to stdin vs. write?
+- [ ] move cli to internal?
+- [ ] parsing config files
+  - [ ] api.ParseConfig
+  - [ ] cli passes the cfg to api
 
-TODOS:
+TODOS: imp
 - [ ] lexer
   - [ ] handle all tokens?
     - [x] private identifiers (eg.: #foo)
@@ -30,4 +36,3 @@ TODOS:
   - [ ] use strings builder
 
 ## Usage
-

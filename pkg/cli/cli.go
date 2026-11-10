@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"flag"
 	"fmt"
 	"io/fs"
 	"os"
@@ -15,30 +16,74 @@ import (
 )
 
 const (
-	Success = iota
-	Error
+	ExitSuccess = iota
+	ExitError
 )
 
 type CLI struct {
-	FormatOptions api.FormatOptions
-	ig            *ignore.Ignorer
+	version string
+	opts    api.FormatOptions
+	ig      *ignore.Ignorer
 }
 
-func New(config api.FormatOptions) CLI {
-	return CLI{FormatOptions: config, ig: ignore.New()}
-}
-
-func (c CLI) Run(args []string) int {
-	if errs := c.formatFiles(args); len(errs) > 0 {
-		for _, err := range errs {
-			fmt.Println(err.Error())
-		}
-		return Error
+func New(version string) *CLI {
+	return &CLI{
+		version: version,
+		opts:    api.DefaultOptions(),
+		ig:      ignore.New(),
 	}
-	return Success
 }
 
-func (c CLI) formatFiles(paths []string) []error {
+func (c *CLI) Run(args []string) int {
+	fs := flag.NewFlagSet("bijou", flag.ExitOnError)
+
+	fs.Var(&arrowParensValue{target: &c.opts.ArrowParens}, "arrow-parens", "Include parentheses around a sole arrow function parameter")
+	fs.BoolVar(&c.opts.UseTabs, "use-tabs", c.opts.UseTabs, "Indent with tabs instead of spaces")
+	fs.IntVar(&c.opts.TabWidth, "tab-width", c.opts.TabWidth, "Number of spaces per indentation level")
+	fs.IntVar(&c.opts.PrintWidth, "print-width", c.opts.PrintWidth, "The line length to wrap")
+	fs.BoolVar(&c.opts.SingleQuote, "single-quote", c.opts.SingleQuote, "Use single quotes instead of double quotes")
+	fs.Var(&trailingCommaValue{target: &c.opts.TrailingComma}, "trailing-comma", "Print trailing commas wherever possible when multi-line")
+	fs.BoolVar(&c.opts.BracketSpacing, "bracket-spacing", c.opts.BracketSpacing, "Print spaces between brackets")
+	fs.BoolVar(&c.opts.JsxBracketSameLine, "jsx-bracket-same-line", c.opts.JsxBracketSameLine, "Print > on the last line instead of at a new line")
+
+	noSemi := fs.Bool("no-semi", false, "Do not print semicolons, except at the beginning of lines which may need them")
+	printVersion := fs.Bool("version", false, "print bijou version and exit")
+	fs.BoolVar(printVersion, "v", false, "print bijou version and exit")
+
+	fs.Usage = func() {
+		fmt.Fprint(fs.Output(), "Usage: bijou [options] [file/dir/glob ...]\n\noptions:\n")
+		fs.PrintDefaults()
+	}
+
+	if err := fs.Parse(args); err != nil {
+		return ExitError
+	}
+
+	if *printVersion {
+		fmt.Fprintln(fs.Output(), c.version)
+		return ExitSuccess
+	}
+
+	if *noSemi {
+		c.opts.Semi = false
+	}
+
+	paths := fs.Args()
+	if len(paths) == 0 {
+		fs.Usage()
+		return ExitError
+	}
+
+	if errs := c.formatFiles(paths); len(errs) > 0 {
+		for _, err := range errs {
+			fmt.Fprintln(fs.Output(), err.Error())
+		}
+		return ExitError
+	}
+	return ExitSuccess
+}
+
+func (c *CLI) formatFiles(paths []string) []error {
 	var (
 		wg   sync.WaitGroup
 		mu   sync.Mutex
@@ -71,7 +116,7 @@ func (c CLI) formatFiles(paths []string) []error {
 	return errs
 }
 
-func (c CLI) walk(paths []string, jobs chan string) error {
+func (c *CLI) walk(paths []string, jobs chan string) error {
 	seen := map[string]struct{}{}
 	enqueue := func(path string) {
 		path = filepath.Clean(path)
@@ -112,7 +157,7 @@ func (c CLI) walk(paths []string, jobs chan string) error {
 	return nil
 }
 
-func (c CLI) formatFile(filePath string) (string, error) {
+func (c *CLI) formatFile(filePath string) (string, error) {
 	bytes, err := os.ReadFile(filePath)
 	if err != nil {
 		return "", fmt.Errorf("unable to read file: %s", filePath)
@@ -120,13 +165,13 @@ func (c CLI) formatFile(filePath string) (string, error) {
 	switch strings.ToLower(filepath.Ext(filePath)) {
 	// TODO: ".json5"
 	case ".json":
-		return api.FormatJSON(string(bytes), c.FormatOptions)
+		return api.FormatJSON(string(bytes), c.opts)
 	default:
-		return api.Format(string(bytes), c.FormatOptions)
+		return api.Format(string(bytes), c.opts)
 	}
 }
 
-func (c CLI) formatAndWriteFile(path string) (err error) {
+func (c *CLI) formatAndWriteFile(path string) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("recovered from panic while formatting file %s: %v", path, r)
