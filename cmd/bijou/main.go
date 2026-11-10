@@ -6,9 +6,14 @@ import (
 	"github.com/janczizikow/bijou/pkg/cli"
 )
 
-const version = "1.0.0"
+func getVersion() string {
+	if v := os.Getenv("BIJOU_VERSION"); v != "" {
+		return v
+	}
+	return "dev"
+}
 
 func main() {
-	app := cli.New(version)
+	app := cli.New(getVersion())
 	os.Exit(app.Run(os.Args[1:]))
 }
