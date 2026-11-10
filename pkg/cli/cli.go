@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"bufio"
+	"errors"
 	"flag"
 	"fmt"
 	"io/fs"
@@ -37,8 +39,8 @@ func New(version string) *CLI {
 }
 
 func (c *CLI) Run(args []string) int {
+	ignoreFiles := []string{".gitignore", ".prettierignore"}
 	fs := flag.NewFlagSet("bijou", flag.ExitOnError)
-
 	fs.Var(&arrowParensValue{target: &c.opts.ArrowParens}, "arrow-parens", "Include parentheses around a sole arrow function parameter")
 	fs.BoolVar(&c.opts.UseTabs, "use-tabs", c.opts.UseTabs, "Indent with tabs instead of spaces")
 	fs.IntVar(&c.opts.TabWidth, "tab-width", c.opts.TabWidth, "Number of spaces per indentation level")
@@ -47,10 +49,10 @@ func (c *CLI) Run(args []string) int {
 	fs.Var(&trailingCommaValue{target: &c.opts.TrailingComma}, "trailing-comma", "Print trailing commas wherever possible when multi-line")
 	fs.BoolVar(&c.opts.BracketSpacing, "bracket-spacing", c.opts.BracketSpacing, "Print spaces between brackets")
 	fs.BoolVar(&c.opts.JsxBracketSameLine, "jsx-bracket-same-line", c.opts.JsxBracketSameLine, "Print > on the last line instead of at a new line")
-
 	noSemi := fs.Bool("no-semi", false, "Do not print semicolons, except at the beginning of lines which may need them")
 	fs.BoolVar(&c.write, "write", c.write, "Edit files in-place.")
 	fs.BoolVar(&c.write, "w", c.write, "Edit files in-place.")
+	ignore := fs.String("ignore-path", ".gitignore,.prettierignore", "Comma-separated list paths to files with patterns describing files to ignore.")
 	printVersion := fs.Bool("version", false, "print bijou version and exit")
 	fs.BoolVar(printVersion, "v", false, "print bijou version and exit")
 
@@ -78,6 +80,15 @@ func (c *CLI) Run(args []string) int {
 		return ExitError
 	}
 
+	if *ignore != "" {
+		ignoreFiles = strings.Split(*ignore, ",")
+	}
+
+	if err := c.parseIgnore(ignoreFiles); err != nil {
+		fmt.Fprint(os.Stderr, err.Error())
+		return ExitError
+	}
+
 	if errs := c.formatFiles(paths); len(errs) > 0 {
 		for _, err := range errs {
 			fmt.Fprintln(os.Stderr, err.Error())
@@ -87,6 +98,33 @@ func (c *CLI) Run(args []string) int {
 	return ExitSuccess
 }
 
+func (c *CLI) parseIgnore(paths []string) error {
+	for _, path := range paths {
+		f, err := os.Open(path)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			} else {
+				return err
+			}
+		}
+		sc := bufio.NewScanner(f)
+		for sc.Scan() {
+			line := strings.TrimSpace(sc.Text())
+			if line != "" && !strings.HasPrefix(line, "#") {
+				c.ig.Add(line)
+			}
+		}
+		if err := sc.Err(); err != nil {
+			f.Close()
+			return err
+		}
+		f.Close()
+	}
+
+	return nil
+}
+
 func (c *CLI) formatFiles(paths []string) []error {
 	var (
 		wg   sync.WaitGroup
@@ -94,8 +132,7 @@ func (c *CLI) formatFiles(paths []string) []error {
 		errs []error
 	)
 	workers := runtime.GOMAXPROCS(0)
-	// Buffer 2x worker count to stage the next batch while workers are busy,
-	// preventing worker starvation between disk reads without unbounded memory use.
+	// Buffer 2x worker count to stage the next batch while workers are busy.
 	jobs := make(chan string, workers*2)
 	for range workers {
 		wg.Go(func() {
