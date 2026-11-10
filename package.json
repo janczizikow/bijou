@@ -1,0 +1,23 @@
+{
+  "name": "bijou",
+  "version": "0.0.0-dev",
+  "description": "",
+  "bin": "cli.js",
+  "files": [
+    "cli.js",
+    "bin/"
+  ],
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/janczizikow/bijou.git"
+  },
+  "keywords": [],
+  "author": "Jan Czizikow <jan.czizikow@gmail.com>",
+  "license": "MIT",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/janczizikow/bijou/issues"
+  },
+  "homepage": "https://github.com/janczizikow/bijou#readme"
+}

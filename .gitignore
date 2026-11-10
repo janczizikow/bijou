@@ -2,3 +2,5 @@
 .vscode/
 .idea/
 bin
+vendor
+node_modules
