@@ -43,3 +43,23 @@ func (tc *trailingCommaValue) Set(value string) error {
 	tc.target = &v
 	return nil
 }
+
+type objectWrapValue struct {
+	target *api.ObjectWrap
+}
+
+func (ow *objectWrapValue) String() string {
+	if ow.target == nil {
+		return ""
+	}
+	return string(*ow.target)
+}
+
+func (ow *objectWrapValue) Set(value string) error {
+	v, err := api.ParseObjectWrap(value)
+	if err != nil {
+		return err
+	}
+	ow.target = &v
+	return nil
+}

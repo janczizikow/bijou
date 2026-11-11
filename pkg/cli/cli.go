@@ -41,13 +41,16 @@ func New(version string) *CLI {
 func (c *CLI) Run(args []string) int {
 	ignoreFiles := []string{".gitignore", ".prettierignore"}
 	fs := flag.NewFlagSet("bijou", flag.ExitOnError)
+	// format option
 	fs.Var(&arrowParensValue{target: &c.opts.ArrowParens}, "arrow-parens", "Include parentheses around a sole arrow function parameter")
+	fs.BoolVar(&c.opts.BracketSameLine, "bracket-same-line", c.opts.BracketSameLine, "Put > of opening tags on the last line instead of on a new line.")
+	noBracketSpacing := fs.Bool("no-bracket-spacing", false, "Do not print spaces between brackets")
+	fs.Var(&objectWrapValue{target: &c.opts.ObjectWrap}, "object-wrap", "How to wrap object literals.")
 	fs.BoolVar(&c.opts.UseTabs, "use-tabs", c.opts.UseTabs, "Indent with tabs instead of spaces")
 	fs.IntVar(&c.opts.TabWidth, "tab-width", c.opts.TabWidth, "Number of spaces per indentation level")
 	fs.IntVar(&c.opts.PrintWidth, "print-width", c.opts.PrintWidth, "The line length to wrap")
 	fs.BoolVar(&c.opts.SingleQuote, "single-quote", c.opts.SingleQuote, "Use single quotes instead of double quotes")
 	fs.Var(&trailingCommaValue{target: &c.opts.TrailingComma}, "trailing-comma", "Print trailing commas wherever possible when multi-line")
-	fs.BoolVar(&c.opts.BracketSpacing, "bracket-spacing", c.opts.BracketSpacing, "Print spaces between brackets")
 	fs.BoolVar(&c.opts.JsxBracketSameLine, "jsx-bracket-same-line", c.opts.JsxBracketSameLine, "Print > on the last line instead of at a new line")
 	noSemi := fs.Bool("no-semi", false, "Do not print semicolons, except at the beginning of lines which may need them")
 	fs.BoolVar(&c.write, "write", c.write, "Edit files in-place.")
@@ -68,6 +71,10 @@ func (c *CLI) Run(args []string) int {
 	if *printVersion {
 		fmt.Fprintln(fs.Output(), c.version) //nolint:errcheck
 		return ExitSuccess
+	}
+
+	if *noBracketSpacing {
+		c.opts.BracketSpacing = false
 	}
 
 	if *noSemi {

@@ -25,6 +25,7 @@ func TestValidateOptions(t *testing.T) {
 			opts: api.FormatOptions{
 				ArrowParens:   opts.ArrowParens,
 				TrailingComma: opts.TrailingComma,
+				ObjectWrap:    opts.ObjectWrap,
 				TabWidth:      -1,
 			},
 			wantErr: assert.Error,
@@ -34,6 +35,7 @@ func TestValidateOptions(t *testing.T) {
 			opts: api.FormatOptions{
 				ArrowParens:   opts.ArrowParens,
 				TrailingComma: opts.TrailingComma,
+				ObjectWrap:    opts.ObjectWrap,
 				PrintWidth:    -1,
 			},
 			wantErr: assert.Error,
@@ -43,6 +45,7 @@ func TestValidateOptions(t *testing.T) {
 			opts: api.FormatOptions{
 				ArrowParens:   api.ArrowParens("test"),
 				TrailingComma: opts.TrailingComma,
+				ObjectWrap:    opts.ObjectWrap,
 			},
 			wantErr: assert.Error,
 		},
@@ -51,6 +54,16 @@ func TestValidateOptions(t *testing.T) {
 			opts: api.FormatOptions{
 				ArrowParens:   opts.ArrowParens,
 				TrailingComma: api.TrailingComma("test"),
+				ObjectWrap:    opts.ObjectWrap,
+			},
+			wantErr: assert.Error,
+		},
+		{
+			name: "invalid object wrap - errors",
+			opts: api.FormatOptions{
+				ArrowParens:   opts.ArrowParens,
+				TrailingComma: opts.TrailingComma,
+				ObjectWrap:    api.ObjectWrap("test"),
 			},
 			wantErr: assert.Error,
 		},

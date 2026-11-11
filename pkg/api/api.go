@@ -48,8 +48,28 @@ func ParseTrailingComma(value string) (TrailingComma, error) {
 	}
 }
 
+type ObjectWrap string
+
+const (
+	ObjectWrapPreserve = "preserve"
+	ObjectWrapCollapse = "collapse"
+)
+
+func ParseObjectWrap(value string) (ObjectWrap, error) {
+	switch strings.ToLower(value) {
+	case "preserve", "":
+		return ObjectWrapPreserve, nil
+	case "collapse":
+		return ObjectWrapCollapse, nil
+	default:
+		return "", fmt.Errorf("invalid object wrap %q (allowed: %s, %s)",
+			value, ObjectWrapPreserve, ObjectWrapCollapse)
+	}
+}
+
 type FormatOptions struct {
 	ArrowParens        ArrowParens
+	BracketSameLine    bool
 	UseTabs            bool
 	TabWidth           int
 	PrintWidth         int
@@ -58,6 +78,7 @@ type FormatOptions struct {
 	BracketSpacing     bool
 	JsxBracketSameLine bool
 	Semi               bool
+	ObjectWrap         ObjectWrap
 }
 
 func (o FormatOptions) Validate() error {
@@ -81,6 +102,12 @@ func (o FormatOptions) Validate() error {
 		return fmt.Errorf("invalid trailing comma value %q", o.TrailingComma)
 	}
 
+	switch o.ObjectWrap {
+	case ObjectWrapPreserve, ObjectWrapCollapse:
+	default:
+		return fmt.Errorf("invalid object wrap value %q", o.ObjectWrap)
+	}
+
 	return nil
 }
 
@@ -99,6 +126,7 @@ func toPrinterOptions(options FormatOptions) printer.Options {
 func DefaultOptions() FormatOptions {
 	return FormatOptions{
 		ArrowParens:        ArrowParensAlways,
+		BracketSameLine:    false,
 		UseTabs:            false,
 		TabWidth:           2,
 		PrintWidth:         80,
@@ -107,6 +135,7 @@ func DefaultOptions() FormatOptions {
 		BracketSpacing:     true,
 		JsxBracketSameLine: false,
 		Semi:               true,
+		ObjectWrap:         ObjectWrapPreserve,
 	}
 }
 
