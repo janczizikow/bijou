@@ -55,7 +55,7 @@ func (c *CLI) Run(args []string) int {
 	fs.BoolVar(printVersion, "v", false, "print bijou version and exit")
 
 	fs.Usage = func() {
-		fmt.Fprint(fs.Output(), "Usage: bijou [options] [file/dir/glob ...]\n\noptions:\n")
+		fmt.Fprint(fs.Output(), "Usage: bijou [options] [file/dir/glob ...]\n\noptions:\n") //nolint:errcheck
 		fs.PrintDefaults()
 	}
 
@@ -64,7 +64,7 @@ func (c *CLI) Run(args []string) int {
 	}
 
 	if *printVersion {
-		fmt.Fprintln(fs.Output(), c.version)
+		fmt.Fprintln(fs.Output(), c.version) //nolint:errcheck
 		return ExitSuccess
 	}
 

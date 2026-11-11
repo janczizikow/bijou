@@ -65,7 +65,7 @@ func (p *jsonParser) parseExpression() ast.Expression {
 				p.fail("unexpected EOF")
 			}
 			elements = append(elements, p.parseExpression())
-			if p.lexer.Token == lexer.Comma && p.lexer.PeekToken() != lexer.RBracket {
+			if p.lexer.Token == lexer.Comma && p.peek() != lexer.RBracket {
 				p.next()
 			} else {
 				break
@@ -84,7 +84,7 @@ func (p *jsonParser) parseExpression() ast.Expression {
 			p.expect(lexer.Colon)
 			value := p.parseExpression()
 			properties = append(properties, ast.ObjectProperty{Key: key, Value: value})
-			if p.lexer.Token == lexer.Comma && p.lexer.PeekToken() != lexer.RBrace {
+			if p.lexer.Token == lexer.Comma && p.peek() != lexer.RBrace {
 				p.next()
 			} else {
 				break
