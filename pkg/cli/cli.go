@@ -116,10 +116,12 @@ func (c *CLI) parseIgnore(paths []string) error {
 			}
 		}
 		if err := sc.Err(); err != nil {
-			f.Close()
+			f.Close() //nolint:errcheck
 			return err
 		}
-		f.Close()
+		if err := f.Close(); err != nil {
+			return err
+		}
 	}
 
 	return nil
