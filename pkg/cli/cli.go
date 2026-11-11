@@ -112,7 +112,7 @@ func (c *CLI) formatFiles(paths []string) []error {
 	walkErr := c.walk(paths, jobs)
 	close(jobs)
 	wg.Wait()
-	// TODO: report errors as they are encountered in formatFile??
+
 	if walkErr != nil {
 		errs = append([]error{walkErr}, errs...)
 	}

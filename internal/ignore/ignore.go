@@ -1,49 +1,65 @@
 package ignore
 
 import (
+	"path"
 	"path/filepath"
-	"regexp"
 	"strings"
 )
 
+type pattern struct {
+	glob    string
+	negated bool
+}
+
 type Ignorer struct {
-	patterns    []string
-	directories map[string]struct{}
+	patterns []pattern
 }
 
 var alwaysIgnoredDirectories = []string{".git", ".svn", ".hg", "node_modules"}
 
-func New(patterns ...string) *Ignorer {
-	dirs := make(map[string]struct{}, 0)
+func New(pathOrPattern ...string) *Ignorer {
+	ig := &Ignorer{patterns: make([]pattern, 0)}
 	for _, dir := range alwaysIgnoredDirectories {
-		dirs[dir] = struct{}{}
+		ig.Add(dir)
 	}
-	for _, pattern := range patterns {
+	for _, pattern := range pathOrPattern {
 		if checkPattern(pattern) {
-			dirs[pattern] = struct{}{}
+			ig.Add(pattern)
 		}
 	}
-	return &Ignorer{directories: dirs}
+	return ig
 }
 
 func checkPattern(pattern string) bool {
-	onlyWhitespace := regexp.MustCompile(`^\s+$`).MatchString(pattern)
-	isBlank := pattern == ""
-	isComment := strings.HasPrefix(pattern, "#")
-
-	return !onlyWhitespace && !isBlank && !isComment
+	if pattern == "" || strings.HasPrefix(pattern, "#") {
+		return false
+	}
+	_, err := filepath.Match(pattern, "")
+	return err == nil
 }
 
-func (i *Ignorer) Add(pattern string) {
-	// TODO: glob patterns
-	if checkPattern(pattern) {
-		i.patterns = append(i.patterns, pattern)
+func (i *Ignorer) Add(pathOrPattern string) {
+	trimmed := strings.TrimSpace(pathOrPattern)
+	if checkPattern(trimmed) {
+		pat := pattern{glob: trimmed}
+		if after, ok := strings.CutPrefix(trimmed, "!"); ok {
+			pat = pattern{glob: after, negated: true}
+		}
+		i.patterns = append(i.patterns, pat)
 	}
 }
 
 func (i *Ignorer) Ignores(pattern string) bool {
-	for path := range strings.SplitSeq(filepath.ToSlash(pattern), "/") {
-		if _, ok := i.directories[path]; ok {
+	for part := range strings.SplitSeq(filepath.ToSlash(pattern), "/") {
+		ignored := false
+		for _, pattern := range i.patterns {
+			matches, err := path.Match(pattern.glob, part)
+			if err != nil || !matches {
+				continue
+			}
+			ignored = !pattern.negated
+		}
+		if ignored {
 			return true
 		}
 	}
