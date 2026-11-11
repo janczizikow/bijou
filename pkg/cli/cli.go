@@ -21,9 +21,11 @@ const (
 )
 
 type CLI struct {
-	version string
-	opts    api.FormatOptions
-	ig      *ignore.Ignorer
+	write       bool
+	stdoutMutex sync.Mutex
+	version     string
+	opts        api.FormatOptions
+	ig          *ignore.Ignorer
 }
 
 func New(version string) *CLI {
@@ -47,6 +49,8 @@ func (c *CLI) Run(args []string) int {
 	fs.BoolVar(&c.opts.JsxBracketSameLine, "jsx-bracket-same-line", c.opts.JsxBracketSameLine, "Print > on the last line instead of at a new line")
 
 	noSemi := fs.Bool("no-semi", false, "Do not print semicolons, except at the beginning of lines which may need them")
+	fs.BoolVar(&c.write, "write", c.write, "Edit files in-place.")
+	fs.BoolVar(&c.write, "w", c.write, "Edit files in-place.")
 	printVersion := fs.Bool("version", false, "print bijou version and exit")
 	fs.BoolVar(printVersion, "v", false, "print bijou version and exit")
 
@@ -76,7 +80,7 @@ func (c *CLI) Run(args []string) int {
 
 	if errs := c.formatFiles(paths); len(errs) > 0 {
 		for _, err := range errs {
-			fmt.Fprintln(fs.Output(), err.Error())
+			fmt.Fprintln(os.Stderr, err.Error())
 		}
 		return ExitError
 	}
@@ -182,10 +186,24 @@ func (c *CLI) formatAndWriteFile(path string) (err error) {
 	if err != nil {
 		return fmt.Errorf("error formatting file %s: %w", path, err)
 	}
+	if c.write {
+		var file *os.File
+		file, err = os.Create(path)
+		if err != nil {
+			return fmt.Errorf("unable to create file %s: %w", path, err)
+		}
+		_, err = fmt.Fprint(file, res)
+		if closeErr := file.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	} else {
+		c.stdoutMutex.Lock()
+		_, err = fmt.Fprint(os.Stdout, res)
+		c.stdoutMutex.Unlock()
+	}
 
-	err = os.WriteFile(path, []byte(res), 0644)
 	if err != nil {
-		return fmt.Errorf("unable to write file: %s", path)
+		return fmt.Errorf("unable to write file %s: %w", path, err)
 	}
 
 	duration := time.Since(start)
