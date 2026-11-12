@@ -23,9 +23,7 @@ func New(pathOrPattern ...string) *Ignorer {
 		ig.Add(dir)
 	}
 	for _, pattern := range pathOrPattern {
-		if checkPattern(pattern) {
-			ig.Add(pattern)
-		}
+		ig.Add(pattern)
 	}
 	return ig
 }
